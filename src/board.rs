@@ -1,22 +1,30 @@
-// use itertools::Itertools;
-use rand::prelude::*;
-use std::collections::HashMap;
+use colored::Colorize;
 use std::collections::HashSet;
 use std::convert::TryInto;
+use std::error;
 use std::fmt;
+
+#[derive(Debug, Clone)]
+pub struct UnsolvableError;
+
+impl fmt::Display for UnsolvableError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "board has no solution")
+    }
+}
+
+// This is important for other errors to wrap this one.
+impl error::Error for UnsolvableError {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        // Generic error, underlying cause isn't tracked.
+        None
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct Board {
     base_size: usize,
-    cells: Vec<Cell>,
-}
-
-#[derive(Debug, Clone, Copy)]
-struct Cell {
-    value: Option<u8>,
-    line: usize,
-    column: usize,
-    square: usize,
+    cells: Vec<Option<u8>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -26,63 +34,70 @@ pub struct CellLoc {
 }
 
 impl CellLoc {
+    pub fn at(l: usize, c: usize, base_size: usize) -> Self {
+        CellLoc {
+            idx: l * base_size.pow(2) + c,
+            base_size,
+        }
+    }
+
     pub fn new(idx: usize, base_size: usize) -> Self {
         CellLoc { idx, base_size }
     }
+
     fn get_index(&self) -> usize {
         self.idx
     }
-    // fn try_fill(&self, board: &mut Board) -> Option<u8> {
-    //     if board.cells[self.get_index()].value.is_some() {
-    //         // value is already set
-    //         return None;
-    //     }
 
-    //     if let Some(possible_values) = self.possible_values(board) {
-    //         let value = possible_values.iter().next().copied();
-    //         board.cells[self.get_index()].value = value;
-    //         value
-    //     } else {
-    //         None
-    //     }
-    // }
-
-    fn possible_values(&self, board: &Board) -> Option<HashSet<u8>> {
-        if board.cells[self.idx].value.is_some() {
+    // TODO this should probably not be here
+    pub fn get_possible_values(&self, board: &Board) -> Option<HashSet<u8>> {
+        if board.cells[self.idx].is_some() {
             return None;
         }
 
-        let mut possible_values: HashSet<u8> =
-            (1..=board.base_size.pow(2) as u8).into_iter().collect();
+        Some(self.calculate_possible_values(board))
+    }
+
+    fn calculate_possible_values(&self, board: &Board) -> HashSet<u8> {
+        let mut possible_values: HashSet<u8> = (1..=board.base_size.pow(2) as u8).collect();
 
         let values_iter = self
             .iter_line()
             .chain(self.iter_col())
             .chain(self.iter_square())
-            .filter_map(|cell_loc| board.cells[cell_loc.idx].value);
+            .filter_map(|cell_loc| board.cells[cell_loc.idx]);
+
         for value in values_iter {
             possible_values.remove(&value);
         }
 
-        Some(possible_values)
+        possible_values
     }
 
-    fn line(&self) -> usize {
+    // fn crowdiness(&self, board: &Board) -> usize {
+    //     self.iter_line()
+    //         .chain(self.iter_col())
+    //         .chain(self.iter_square())
+    //         .filter_map(|cell_loc| board.cells[cell_loc.idx])
+    //         .count()
+    // }
+
+    pub fn line(&self) -> usize {
         self.idx / self.base_size.pow(2)
     }
 
-    fn col(&self) -> usize {
+    pub fn col(&self) -> usize {
         self.idx % self.base_size.pow(2)
     }
 
-    fn square(&self) -> usize {
+    pub fn square(&self) -> usize {
         let line_no = self.line();
         let col_no = self.col();
 
         (line_no / self.base_size) * self.base_size + (col_no / self.base_size)
     }
 
-    fn iter_line(&self) -> impl Iterator<Item = CellLoc> {
+    pub fn iter_line(&self) -> impl Iterator<Item = CellLoc> {
         let base_size = self.base_size;
 
         let line_start = self.line() * self.base_size.pow(2);
@@ -91,7 +106,7 @@ impl CellLoc {
         (line_start..line_end).map(move |idx| CellLoc { idx, base_size })
     }
 
-    fn iter_col(&self) -> impl Iterator<Item = CellLoc> {
+    pub fn iter_col(&self) -> impl Iterator<Item = CellLoc> {
         let base_size = self.base_size;
         let col_no = self.col();
         (0..base_size.pow(2)).map(move |line_no| CellLoc {
@@ -100,7 +115,7 @@ impl CellLoc {
         })
     }
 
-    fn iter_square(&self) -> impl Iterator<Item = CellLoc> {
+    pub fn iter_square(&self) -> impl Iterator<Item = CellLoc> {
         let base_size = self.base_size;
 
         let line_no = self.idx / self.base_size.pow(2);
@@ -119,167 +134,40 @@ impl CellLoc {
 }
 
 impl Board {
+    #[must_use]
     pub fn new(base_size: usize) -> Self {
-        let mut table = Board {
+        let table = Board {
             base_size,
-            cells: Vec::with_capacity(base_size.pow(4)),
+            cells: vec![None; base_size.pow(4)],
         };
-        for i in 0..base_size.pow(4) {
-            let l = i / base_size.pow(2);
-            let c = i % base_size.pow(2);
-            let s = (i % base_size.pow(2)) / base_size + ((i / base_size.pow(3)) * base_size);
-            let cell = Cell {
-                value: None,
-                line: l,
-                column: c,
-                square: s,
-            };
-            table.cells.push(cell);
-        }
+
         table
     }
 
-    fn fitness_line(&self, l: usize) -> u32 {
-        let mut line = HashSet::new();
-        let mut fitness = 0;
-        for idx in l * 9..(l * 9 + 9) {
-            if let Some(value) = self.cells[idx].value {
-                if line.contains(&value) {
-                    fitness += 1;
-                };
-                line.insert(value);
-            }
-        }
-        fitness
-        // check that there are no overlaps in line
+    pub fn get_base_size(&self) -> usize {
+        self.base_size
     }
 
-    fn fitness_column(&self, c: usize) -> u32 {
-        let mut column = HashSet::new();
-        let mut fitness = 0;
-        for l in 0..9 {
-            let cell = &self.cells[l * 9 + c];
-            if let Some(value) = cell.value {
-                if column.contains(&value) {
-                    fitness += 1;
-                };
-                column.insert(value);
-            }
-        }
-        fitness
+    pub fn set(&mut self, loc: &CellLoc, value: u8) -> Option<u8> {
+        self.cells[loc.get_index()].replace(value)
     }
 
-    fn fitness_square(&self, s: usize) -> u32 {
-        let l0 = (s / 3) * 3;
-        let c0 = (s % 3) * 3;
-        let mut square = HashSet::new();
-        let mut fitness = 0;
-        for l in l0..(l0 + 3) {
-            for c in c0..(c0 + 3) {
-                let cell = &self.cells[l * 9 + c];
-                if let Some(value) = cell.value {
-                    if square.contains(&value) {
-                        fitness += 1;
-                    };
-                    square.insert(value);
-                }
-            }
-        }
-        fitness
+    pub fn set_at(&mut self, l: usize, c: usize, value: u8) -> Option<u8> {
+        self.cells[l * 9 + c].replace(value)
     }
 
-    pub fn genes(&self) -> Vec<u32> {
-        let mut genes = Vec::with_capacity(27);
-
-        for l in 0..9 {
-            genes.push(self.fitness_line(l));
-        }
-
-        for c in 0..9 {
-            genes.push(self.fitness_column(c));
-        }
-
-        for s in 0..9 {
-            genes.push(self.fitness_square(s));
-        }
-
-        genes
+    pub fn unset(&mut self, loc: &CellLoc) {
+        self.cells[loc.get_index()] = None;
     }
 
-    pub fn fitness(&self) -> u32 {
-        let mut fitness = 0;
-
-        for l in 0..9 {
-            fitness += self.fitness_line(l);
-        }
-
-        for c in 0..9 {
-            fitness += self.fitness_column(c);
-        }
-
-        for s in 0..9 {
-            fitness += self.fitness_square(s);
-        }
-
-        return fitness;
-    }
-
-    pub fn set(&mut self, loc: CellLoc, value: u8) {
-        self.cells[loc.get_index()].value = Some(value);
-    }
-
-    pub fn unset(&mut self, loc: CellLoc) {
-        self.cells[loc.get_index()].value = None;
-    }
-
-    pub fn set_line(&self, line_no: usize, idx: usize, value: u8) -> Board {
-        let mut new_table = self.clone();
-        new_table.set_line_mut(line_no, idx, value);
-        new_table
-    }
-
-    pub fn set_column(&self, column_no: usize, idx: usize, value: u8) -> Board {
-        let mut new_table = self.clone();
-        new_table.set_column_mut(column_no, idx, value);
-        new_table
-    }
-
-    pub fn set_square(&self, square_no: usize, idx: usize, value: u8) -> Board {
-        let mut new_table = self.clone();
-        new_table.set_square_mut(square_no, idx, value);
-        new_table
-    }
-
-    pub fn set_line_mut(&mut self, line_no: usize, idx: usize, value: u8) -> () {
-        self.cells[line_no * 9 + idx].value = Some(value);
-    }
-
-    pub fn set_column_mut(&mut self, col_no: usize, idx: usize, value: u8) -> () {
-        self.cells[idx * 9 + col_no].value = Some(value);
-    }
-
-    pub fn set_square_mut(&mut self, square_no: usize, idx: usize, value: u8) -> () {
-        let line_0 = (square_no / 3) * 3;
-        let col_0 = (square_no % 3) * 3;
-
-        let line = line_0 + idx / 3;
-        let col = col_0 + idx % 3;
-
-        self.set_line_mut(line, col, value);
-    }
-
-    pub fn set_random(&mut self) {
-        let mut rng = thread_rng();
-        let mut cell = self.cells.choose_mut(&mut rng).unwrap();
-        cell.value = Some(rng.gen_range(1, 10));
-    }
-
+    #[must_use]
     pub fn get(&self, cell: &CellLoc) -> Option<u8> {
-        self.cells[cell.idx].value
+        self.cells[cell.idx]
     }
 
+    #[must_use]
     pub fn get_at(&self, l: usize, c: usize) -> Option<u8> {
-        self.cells[l * 9 + c].value
+        self.cells[l * 9 + c]
     }
 
     pub fn iter_cells(&self) -> impl Iterator<Item = CellLoc> {
@@ -288,6 +176,7 @@ impl Board {
         (0..self.base_size.pow(4)).map(move |idx| CellLoc { idx, base_size })
     }
 
+    #[must_use]
     pub fn cell_at(&self, idx: usize) -> CellLoc {
         CellLoc {
             idx,
@@ -295,160 +184,36 @@ impl Board {
         }
     }
 
-    // fn iter_line(&self, line_no: usize) -> impl Iterator<Item = CellLoc> {
-    //     let base_size = self.base_size;
-    //     let start = line_no * self.base_size.pow(2);
-    //     let end = start + self.base_size.pow(2);
-    //     (start..end).map(move |idx| CellLoc { idx, base_size })
-    // }
+    pub fn print(&self, highlight: Option<CellLoc>) {
+        let h_idx = match highlight {
+            Some(cell) => cell.idx,
+            None => self.base_size.pow(4) + 1,
+        };
 
-    // fn iter_col(&self, col_no: usize) -> impl Iterator<Item = CellLoc> {
-    //     let base_size = self.base_size;
-
-    //     (0..base_size.pow(2)).map(move |line_no| CellLoc {
-    //         idx: line_no * base_size + col_no,
-    //         base_size,
-    //     })
-    // }
-
-    pub fn solve(&mut self) -> bool {
-        // is there a cell with only 1 possibility?
-
-        // Naked Singles
-        let mut possible_values_cache = HashMap::new();
-        for cell in self.iter_cells() {
-            if let Some(values) = cell.possible_values(self) {
-                if values.len() == 0 {
-                    return false;
-                } else if values.len() == 1 {
-                    let value = values.iter().next().unwrap().to_owned();
-                    // println!("[Naked Single] Setting cell {:?} to value {}", cell, value);
-                    self.set(cell, value);
-
-                    return if self.solve() {
-                        true
-                    } else {
-                        self.unset(cell);
-                        false
-                    };
-                }
-
-                possible_values_cache.insert(cell, values);
-            }
-        }
-
-        // Hidden Singles
-        enum HiddenSingle {
-            Multiple,
-            Single(CellLoc),
-        }
-
-        fn insert_hidden_single(
-            block: &mut HashMap<usize, HiddenSingle>,
-            block_no: usize,
-            cell: CellLoc,
-        ) -> () {
-            if block.get(&block_no).is_none() {
-                block.insert(block_no, HiddenSingle::Single(cell));
-            } else {
-                block.insert(block_no, HiddenSingle::Multiple);
-            }
-        }
-
-        for value in 1..=self.base_size.pow(2) as u8 {
-            let mut line_block = HashMap::new();
-            let mut col_block = HashMap::new();
-            let mut square_block = HashMap::new();
-
-            for cell in self.iter_cells() {
-                let line = cell.line();
-                let col = cell.col();
-                let square = cell.square();
-
-                if self.get(&cell).is_some() {
-                    continue;
-                }
-
-                if let Some(values) = possible_values_cache.get(&cell) {
-                    if values.contains(&value) {
-                        insert_hidden_single(&mut line_block, line, cell);
-                        insert_hidden_single(&mut col_block, col, cell);
-                        insert_hidden_single(&mut square_block, square, cell);
-                    }
-                }
-            }
-
-            let mut updated = Vec::new();
-            for (_, val) in line_block
-                .iter()
-                .chain(col_block.iter())
-                .chain(square_block.iter())
-            {
-                if let HiddenSingle::Single(cell) = val {
-                    // println!(
-                    //     "[Hidden Single] Setting cell ({}, {}) to value {}",
-                    //     cell.line(),
-                    //     cell.col(),
-                    //     value
-                    // );
-                    self.set(cell.to_owned(), value);
-                    updated.push(cell);
-                }
-            }
-
-            if updated.len() > 0 {
-                return if self.solve() {
-                    true
-                } else {
-                    for cell in updated {
-                        self.unset(cell.to_owned());
-                    }
-                    false
-                };
-            }
-        }
-
-        // Guesses
-        let mut possible_values = possible_values_cache.into_iter().collect::<Vec<_>>();
-        possible_values.sort_by_key(|(_, values)| values.len());
-
-        if let Some((cell, possibilities)) = possible_values.get(0) {
-            for value in possibilities {
-                self.set(cell.to_owned(), value.to_owned());
-                // println!(
-                //     "[Guess] Setting cell ({}, {}) to value {}",
-                //     cell.line(),
-                //     cell.col(),
-                //     value
-                // );
-                if self.solve() {
-                    return true;
-                }
-                // println!(
-                //     "[Backtrack] Setting cell ({}, {}) to value None",
-                //     cell.line(),
-                //     cell.col()
-                // );
-                self.unset(cell.to_owned());
-            }
-        }
-
-        self.cells.iter().all(|cell| cell.value.is_some())
-    }
-
-    pub fn print(&self) {
         for l in 0..9 {
+            if l != 0 && l % self.base_size == 0 {
+                println!(
+                    "{}",
+                    (0..self.base_size.pow(2) * 2 + self.base_size - 2)
+                        .map(|_| "-")
+                        .collect::<String>()
+                );
+            }
             for c in 0..9 {
-                // let cell = &self.cells[l * 9 + c];
-                // print!("{} ", cell.square);
-
-                if let Some(value) = self.cells[l * 9 + c].value {
-                    print!("{} ", value);
+                if c != 0 && c % self.base_size == 0 {
+                    print!("|")
+                }
+                if let Some(value) = self.cells[l * 9 + c] {
+                    if l * 9 + c == h_idx {
+                        print!("{} ", value.to_string().red().bold());
+                    } else {
+                        print!("{} ", value);
+                    }
                 } else {
-                    print!("_ ")
+                    print!(". ")
                 }
             }
-            print!("\n");
+            println!();
         }
     }
 }
@@ -460,7 +225,7 @@ impl PartialEq for Board {
         }
 
         for idx in 0..self.base_size.pow(4) {
-            if self.cells[idx].value != other.cells[idx].value {
+            if self.cells[idx] != other.cells[idx] {
                 return false;
             }
         }
@@ -473,68 +238,46 @@ impl fmt::Display for Board {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for l in 0..self.base_size.pow(2) {
             for c in 0..self.base_size.pow(2) {
-                if let Some(value) = self.cells[l * self.base_size.pow(2) + c].value {
+                if let Some(value) = self.cells[l * self.base_size.pow(2) + c] {
                     write!(f, "{} ", value)?;
                 } else {
                     write!(f, ". ")?;
                 }
             }
-            write!(f, "\n")?;
+            writeln!(f)?;
         }
         Ok(())
     }
 }
 
-// pub struct IterLine<'a> {
-//     line_no: usize,
-//     next: Option<usize>,
-//     table: &'a Board,
-// }
-
-// impl Board {
-//     pub fn iter_line(&self, line_no: usize) -> IterLine {
-//         IterLine {
-//             line_no: line_no,
-//             next: Some(0),
-//             table: self,
-//         }
-//     }
-// }
-
-// impl Iterator for IterLine<'_> {
-//     type Item = Option<u8>;
-//     fn next(&mut self) -> Option<Self::Item> {
-//         self.next.map(|col| {
-//             self.next = if col < 8 { Some(col + 1) } else { None };
-//             self.table.get(self.line_no, col)
-//         })
-//     }
-// }
-
 impl From<&str> for Board {
     fn from(board_as_string: &str) -> Self {
+        let board_as_string = board_as_string.replace(" ", "");
+        let board_as_string = board_as_string.replace("\n", "");
+        let board_as_string = board_as_string.replace("_", "");
+        let board_as_string = board_as_string.replace("|", "");
+
         let base_size = (board_as_string.len() as f64).sqrt().sqrt();
 
         if base_size.fract() != 0.0 {
             panic!("String definition of board does not have the correct size")
         }
-
         let mut table = Board::new(base_size as usize);
 
+        // TODO: must support deserialization of tables larger than base 3
         for (idx, c) in board_as_string.char_indices() {
-            if c != '.' {
-                table.set(
-                    CellLoc {
-                        idx,
-                        base_size: base_size as usize,
-                    },
+            match c {
+                '1'..='9' => {
+                    table.set(
+                    &CellLoc::new(idx, base_size as usize),
                     c.to_digit(10)
-                        .expect(
-                            "All characters in the board representation should be digits or a '.'",
-                        )
+                        .unwrap()
                         .try_into()
-                        .expect("All numbers in the board should be smaller than 256"),
-                )
+                        .unwrap()
+                );
+                }
+                '.' => continue,
+                _ => panic!("All characters in the board representation should be digits or a spacing characted '.', '-', '|' or '\\n'")
             }
         }
 
@@ -550,68 +293,18 @@ mod test {
 
     #[test]
     fn basics() {
-        let table = Board::new(3);
+        let table = Board::new(2);
 
-        assert_eq!(table.fitness(), 0);
+        assert!(table.iter_cells().all(|cell| table.get(&cell).is_none()));
     }
 
     #[test]
     fn set_value() {
-        let table = Board::new(3);
+        let mut table = Board::new(3);
         assert_eq!(table.get_at(0, 0), None);
-        let table = table.set_line(0, 0, 3);
+        table.set(&CellLoc::new(0, 3), 3);
         assert_eq!(table.get_at(0, 0), Some(3));
     }
-
-    #[test]
-    fn set_square() {
-        let mut table = Board::new(3);
-        // mapping of line numbers and column numbers per square
-        //   0 1 2 3 4 5 6 7 8
-        // 0 0 0 0 1 1 1 2 2 2
-        // 1 0 0 0 1 1 1 2 2 2
-        // 2 0 0 0 1 1 1 2 2 2
-        // 3 3 3 3 4 4 4 5 5 5
-        // 4 3 3 3 4 4 4 5 5 5
-        // 5 3 3 3 4 4 4 5 5 5
-        // 6 6 6 6 7 7 7 8 8 8
-        // 7 6 6 6 7 7 7 8 8 8
-        // 8 6 6 6 7 7 7 8 8 8
-
-        table.set_square_mut(1, 4, 0);
-        table.set_square_mut(2, 3, 0);
-        table.set_square_mut(4, 8, 0);
-        table.set_square_mut(8, 5, 0);
-
-        assert_eq!(table.get_at(1, 4), Some(0));
-        assert_eq!(table.get_at(1, 6), Some(0));
-        assert_eq!(table.get_at(5, 5), Some(0));
-        assert_eq!(table.get_at(7, 8), Some(0));
-    }
-
-    #[test]
-    fn fitness() {
-        let table = Board::new(3);
-        assert_eq!(table.fitness(), 0);
-        let table = table.set_line(0, 0, 1);
-        assert_eq!(table.fitness(), 0);
-        let table = table.set_line(0, 1, 1);
-        let table = table.set_line(1, 0, 1);
-
-        assert_eq!(table.fitness(), 4);
-    }
-
-    // #[test]
-    // fn iter_line() {
-    //     let table = Board::new(3);
-    //     let table = table.set_line(0, 0, 3);
-
-    //     let mut iterator = table.iter_line(0);
-    //     assert_eq!(iterator.next(), Some(Some(3)));
-    //     for val in iterator {
-    //         assert_eq!(val, None)
-    //     }
-    // }
 
     #[test]
     fn square() {
@@ -650,29 +343,29 @@ mod test {
 
     #[test]
     fn possible_values_is_zero() {
-        let table = Board::new(3);
-        let table = table.set_line(0, 0, 1);
+        let mut table = Board::new(3);
+        table.set_at(0, 0, 1);
 
         let mut iter = table.iter_cells();
         let cell = iter.next().expect("table should have 81 cells");
 
         assert_eq!(cell.idx, 0);
-        assert!(cell.possible_values(&table).is_none())
+        assert!(cell.get_possible_values(&table).is_none())
     }
 
     #[test]
     fn possible_values() {
-        let table = Board::new(3);
-        let table = table.set_line(0, 1, 2);
-        let table = table.set_line(0, 2, 3);
-        let table = table.set_line(1, 0, 4);
-        let table = table.set_line(2, 2, 5);
+        let mut table = Board::new(3);
+        table.set_at(0, 1, 2);
+        table.set_at(0, 2, 3);
+        table.set_at(1, 0, 4);
+        table.set_at(2, 2, 5);
 
         let mut iter = table.iter_cells();
         let cell = iter.next().expect("table should have 81 cells");
 
         assert_eq!(
-            cell.possible_values(&table),
+            cell.get_possible_values(&table),
             Some(
                 vec![1u8, 6, 7, 8, 9]
                     .iter()
@@ -683,43 +376,8 @@ mod test {
     }
 
     #[test]
-    fn solve() {
-        let mut table = Board::from(
-            "...4..87.4.3......2....3..9..62....7...9.6...3.9.8...........4.8725........72.6..",
-        );
-        table.solve();
-
-        print!("{}", table);
-
-        assert_eq!(
-            table,
-            Board::from(
-                "695412873413879526287653419146235987728946135359187264561398742872564391934721658"
-            )
-        );
-    }
-
-    #[test]
-    fn solve2() {
-        let mut table = Board::from(
-            ".724..3........49.........2921...5.7..4.6...3......2...4..7.....3..196....5..4.21",
-        );
-        table.solve();
-
-        print!("{}", table);
-
-        assert_eq!(
-            table,
-            Board::from(
-                "572491386318726495469583172921348567754962813683157249146275938237819654895634721"
-            )
-        );
-    }
-
-    #[test]
     fn from() {
         let table = Board::from("................");
-
         print!("{}", table);
         assert_eq!(table, Board::new(2));
     }
