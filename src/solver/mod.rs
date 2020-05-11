@@ -1,8 +1,11 @@
 use crate::board::{Board, CellLoc};
+use std::collections::BTreeSet;
 use std::collections::HashMap;
-use std::collections::HashSet;
 use std::error;
 use std::fmt;
+
+mod generator;
+pub use generator::generate;
 
 #[derive(Debug, Clone, Copy)]
 enum Strategy {
@@ -17,7 +20,7 @@ enum MoveLog {
         strategy: Strategy,
         cell: CellLoc,
         value: u8,
-        options: Option<HashSet<u8>>,
+        options: Option<BTreeSet<u8>>,
     },
     PencilOut(CellLoc, u8),
 }
@@ -62,9 +65,10 @@ impl error::Error for UnsolvableError {
     }
 }
 
+#[derive(Debug)]
 pub struct SudokuSolver {
     board: Board,
-    possible_values: HashMap<CellLoc, HashSet<u8>>,
+    possible_values: HashMap<CellLoc, BTreeSet<u8>>,
     move_log: Vec<MoveLog>,
 }
 
@@ -88,9 +92,16 @@ impl SudokuSolver {
     }
 
     pub fn solve(&mut self) -> Result<(), UnsolvableError> {
+        if self
+            .possible_values
+            .iter()
+            .any(|(_, values)| values.is_empty())
+        {
+            return Err(UnsolvableError);
+        }
+
         while !self.possible_values.is_empty() {
             self.solve_iteration()?;
-            println!("iter");
         }
         Ok(())
     }
@@ -243,10 +254,6 @@ impl SudokuSolver {
         value: u8,
     ) -> Result<Vec<MoveLog>, UnsolvableError> {
         self.board.set(cell, value);
-
-        // self.print(Some(*cell));
-        // self.print_possible_values();
-        // println!("{:?} - {:?}\n", strategy, self.possible_values.get(cell));
 
         let options = self.possible_values.remove(&cell);
 

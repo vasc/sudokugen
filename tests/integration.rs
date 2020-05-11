@@ -1,5 +1,5 @@
 use sudoku_generator::board::Board;
-use sudoku_generator::solver::solve;
+use sudoku_generator::solver::{generate, solve};
 
 #[test]
 fn solve_sudoku() {
@@ -57,4 +57,19 @@ fn test_solved() {
     "
         )
     );
+}
+
+#[test]
+fn generate_test() {
+    let gen = generate(3);
+    println!(
+        "Final board ({})\n{}",
+        gen.board()
+            .iter_cells()
+            .filter(|cell| gen.board().get(cell).is_some())
+            .count(),
+        gen.board(),
+    );
+
+    assert!(gen.is_solution_unique());
 }

@@ -1,18 +1,8 @@
-// pub mod board;
-// use board::Board;
+pub mod board;
+pub mod solver;
+
+use solver::generate;
 
 fn main() {
-    //     let mut table = Board::new(3);
-
-    //     table.solve().unwrap();
-
-    //     let table = table.find_minimal_board();
-    //     let total2 = table.iter_cells().fold(0, |total, cell| {
-    //         if table.get(&cell).is_some() {
-    //             return total + 1;
-    //         }
-    //         total
-    //     });
-
-    //     println!("{}, => {}", table, total2);
+    print!("{}", generate(3).board());
 }

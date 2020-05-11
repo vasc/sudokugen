@@ -1,5 +1,5 @@
 use colored::Colorize;
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 use std::convert::TryInto;
 use std::error;
 use std::fmt;
@@ -27,7 +27,7 @@ pub struct Board {
     cells: Vec<Option<u8>>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct CellLoc {
     base_size: usize,
     idx: usize,
@@ -50,7 +50,7 @@ impl CellLoc {
     }
 
     // TODO this should probably not be here
-    pub fn get_possible_values(&self, board: &Board) -> Option<HashSet<u8>> {
+    pub fn get_possible_values(&self, board: &Board) -> Option<BTreeSet<u8>> {
         if board.cells[self.idx].is_some() {
             return None;
         }
@@ -58,8 +58,8 @@ impl CellLoc {
         Some(self.calculate_possible_values(board))
     }
 
-    fn calculate_possible_values(&self, board: &Board) -> HashSet<u8> {
-        let mut possible_values: HashSet<u8> = (1..=board.base_size.pow(2) as u8).collect();
+    fn calculate_possible_values(&self, board: &Board) -> BTreeSet<u8> {
+        let mut possible_values: BTreeSet<u8> = (1..=board.base_size.pow(2) as u8).collect();
 
         let values_iter = self
             .iter_line()
@@ -73,14 +73,6 @@ impl CellLoc {
 
         possible_values
     }
-
-    // fn crowdiness(&self, board: &Board) -> usize {
-    //     self.iter_line()
-    //         .chain(self.iter_col())
-    //         .chain(self.iter_square())
-    //         .filter_map(|cell_loc| board.cells[cell_loc.idx])
-    //         .count()
-    // }
 
     pub fn line(&self) -> usize {
         self.idx / self.base_size.pow(2)
@@ -156,8 +148,8 @@ impl Board {
         self.cells[l * 9 + c].replace(value)
     }
 
-    pub fn unset(&mut self, loc: &CellLoc) {
-        self.cells[loc.get_index()] = None;
+    pub fn unset(&mut self, loc: &CellLoc) -> Option<u8> {
+        self.cells[loc.get_index()].take()
     }
 
     #[must_use]
@@ -289,7 +281,7 @@ impl From<&str> for Board {
 mod test {
     use super::Board;
     use super::CellLoc;
-    use std::collections::HashSet;
+    use std::collections::BTreeSet;
 
     #[test]
     fn basics() {
@@ -370,7 +362,7 @@ mod test {
                 vec![1u8, 6, 7, 8, 9]
                     .iter()
                     .map(|value| value.to_owned())
-                    .collect::<HashSet<u8>>()
+                    .collect::<BTreeSet<u8>>()
             )
         )
     }

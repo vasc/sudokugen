@@ -1,15 +1,6 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-// extern crate sudoku_generator;
 use sudoku_generator::board::Board;
-use sudoku_generator::solver::solve;
-
-// fn fibonacci(n: u64) -> u64 {
-//     match n {
-//         0 => 1,
-//         1 => 1,
-//         n => fibonacci(n - 1) + fibonacci(n - 2),
-//     }
-// }
+use sudoku_generator::solver::{generate, solve};
 
 fn solve_benchmark(c: &mut Criterion) {
     let table = Board::from(
@@ -19,16 +10,15 @@ fn solve_benchmark(c: &mut Criterion) {
     c.bench_function("solve", |b| b.iter(|| solve(black_box(&table)).unwrap()));
 }
 
-// fn find_minimal_map(c: &mut Criterion) {
-//     c.bench_function("find_minimal_board", |b| {
-//         let mut table = Board::new(3);
-//         b.iter(|| {
-//             let solver.
-//             table.solve().unwrap();
-//             table.find_minimal_board();
-//         })
-//     });
-// }
+fn generate_benchmark(c: &mut Criterion) {
+    c.bench_function("generate", |b| b.iter(|| generate(black_box(3))));
+}
 
-criterion_group!(benches, solve_benchmark);
-criterion_main!(benches);
+criterion_group!(solve_bench, solve_benchmark);
+criterion_group!(
+    name = gen_bench;
+    config = Criterion::default().sample_size(40);
+    targets = generate_benchmark
+);
+
+criterion_main!(solve_bench, gen_bench);
