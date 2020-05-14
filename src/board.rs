@@ -3,6 +3,7 @@ use std::collections::BTreeSet;
 use std::convert::TryInto;
 use std::error;
 use std::fmt;
+use std::str::FromStr;
 
 #[derive(Debug, Clone)]
 pub struct UnsolvableError;
@@ -27,10 +28,22 @@ pub struct Board {
     cells: Vec<Option<u8>>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct CellLoc {
     base_size: usize,
     idx: usize,
+}
+
+impl fmt::Display for CellLoc {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "({}, {})", self.line(), self.col())
+    }
+}
+
+impl fmt::Debug for CellLoc {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "[{}, {}]", self.line(), self.col())
+    }
 }
 
 impl CellLoc {
@@ -169,11 +182,16 @@ impl Board {
     }
 
     #[must_use]
-    pub fn cell_at(&self, idx: usize) -> CellLoc {
+    pub fn cell(&self, idx: usize) -> CellLoc {
         CellLoc {
             idx,
             base_size: self.base_size,
         }
+    }
+
+    #[must_use]
+    pub fn cell_at(&self, l: usize, c: usize) -> CellLoc {
+        CellLoc::at(l, c, self.base_size)
     }
 
     pub fn print(&self, highlight: Option<CellLoc>) {
@@ -182,21 +200,23 @@ impl Board {
             None => self.base_size.pow(4) + 1,
         };
 
-        for l in 0..9 {
+        let width = self.base_size.pow(2);
+
+        for l in 0..width {
             if l != 0 && l % self.base_size == 0 {
                 println!(
                     "{}",
-                    (0..self.base_size.pow(2) * 2 + self.base_size - 2)
+                    (0..width * 2 + self.base_size - 2)
                         .map(|_| "-")
                         .collect::<String>()
                 );
             }
-            for c in 0..9 {
+            for c in 0..width {
                 if c != 0 && c % self.base_size == 0 {
                     print!("|")
                 }
-                if let Some(value) = self.cells[l * 9 + c] {
-                    if l * 9 + c == h_idx {
+                if let Some(value) = self.cells[l * width + c] {
+                    if l * width + c == h_idx {
                         print!("{} ", value.to_string().red().bold());
                     } else {
                         print!("{} ", value);
@@ -242,8 +262,27 @@ impl fmt::Display for Board {
     }
 }
 
-impl From<&str> for Board {
-    fn from(board_as_string: &str) -> Self {
+#[derive(Debug, Clone)]
+pub struct MalformedBoardError;
+
+impl fmt::Display for MalformedBoardError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "This board is not correctly formed")
+    }
+}
+
+// This is important for other errors to wrap this one.
+impl error::Error for MalformedBoardError {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        // Generic error, underlying cause isn't tracked.
+        None
+    }
+}
+
+impl FromStr for Board {
+    type Err = MalformedBoardError;
+
+    fn from_str(board_as_string: &str) -> Result<Self, Self::Err> {
         let board_as_string = board_as_string.replace(" ", "");
         let board_as_string = board_as_string.replace("\n", "");
         let board_as_string = board_as_string.replace("_", "");
@@ -252,7 +291,8 @@ impl From<&str> for Board {
         let base_size = (board_as_string.len() as f64).sqrt().sqrt();
 
         if base_size.fract() != 0.0 {
-            panic!("String definition of board does not have the correct size")
+            return Err(MalformedBoardError);
+            // panic!("String definition of board does not have the correct size")
         }
         let mut table = Board::new(base_size as usize);
 
@@ -261,19 +301,16 @@ impl From<&str> for Board {
             match c {
                 '1'..='9' => {
                     table.set(
-                    &CellLoc::new(idx, base_size as usize),
-                    c.to_digit(10)
-                        .unwrap()
-                        .try_into()
-                        .unwrap()
-                );
+                        &CellLoc::new(idx, base_size as usize),
+                        c.to_digit(10).unwrap().try_into().unwrap(),
+                    );
                 }
                 '.' => continue,
-                _ => panic!("All characters in the board representation should be digits or a spacing characted '.', '-', '|' or '\\n'")
+                _ => return Err(MalformedBoardError), // _ => panic!("All characters in the board representation should be digits or a spacing characted '.', '-', '|' or '\\n'")
             }
         }
 
-        table
+        Ok(table)
     }
 }
 
@@ -300,9 +337,9 @@ mod test {
 
     #[test]
     fn square() {
-        assert_eq!(CellLoc::new(0, 2).square(), 0);
-        assert_eq!(CellLoc::new(6, 2).square(), 1);
-        assert_eq!(CellLoc::new(14, 2).square(), 3);
+        assert_eq!(CellLoc::at(0, 0, 3).square(), 0);
+        assert_eq!(CellLoc::at(0, 3, 3).square(), 1);
+        assert_eq!(CellLoc::at(3, 0, 3).square(), 3);
     }
 
     #[test]
@@ -369,7 +406,7 @@ mod test {
 
     #[test]
     fn from() {
-        let table = Board::from("................");
+        let table: Board = "................".parse().unwrap();
         print!("{}", table);
         assert_eq!(table, Board::new(2));
     }

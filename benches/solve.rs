@@ -1,11 +1,10 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use sudoku_generator::board::Board;
 use sudoku_generator::solver::{generate, solve};
 
 fn solve_benchmark(c: &mut Criterion) {
-    let table = Board::from(
-        ".724..3........49.........2921...5.7..4.6...3......2...4..7.....3..196....5..4.21",
-    );
+    let table = ".724..3........49.........2921...5.7..4.6...3......2...4..7.....3..196....5..4.21"
+        .parse()
+        .unwrap();
 
     c.bench_function("solve", |b| b.iter(|| solve(black_box(&table)).unwrap()));
 }
