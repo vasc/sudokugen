@@ -2,7 +2,7 @@ use sudoku_generator::board::Board;
 use sudoku_generator::solver::{generate, solve};
 
 #[test]
-fn solve_sudoku() {
+fn solve_sudoku_simple() {
     let table: Board =
         "...4..87.4.3......2....3..9..62....7...9.6...3.9.8...........4.8725........72.6.."
             .parse()
@@ -17,7 +17,7 @@ fn solve_sudoku() {
 }
 
 #[test]
-fn solve_sudoku2() {
+fn solve_sudoku_with_backtrack() {
     let table: Board =
         ".724..3........49.........2921...5.7..4.6...3......2...4..7.....3..196....5..4.21"
             .parse()

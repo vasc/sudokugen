@@ -22,7 +22,6 @@ pub fn generate(base_size: usize) -> GenSudoku {
             ..
         } => None,
         MoveLog::SetValue { cell, .. } => Some(cell),
-        _ => None,
     });
 
     let mut board = solver.board;
@@ -41,22 +40,27 @@ pub fn generate(base_size: usize) -> GenSudoku {
         .collect();
     let mut guesses = HashMap::new();
     for mov in solver.move_log {
-        if let Some(Strategy::Guess) = mov.get_strategy() {
-            if let MoveLog::SetValue {
-                cell,
-                options,
-                value,
-                ..
-            } = mov
-            {
-                if !givens.contains(&cell) {
-                    let mut options = options.unwrap_or_default().to_owned();
-                    options.remove(&value);
+        // if let Some(Strategy::Guess) = mov.get_strategy() {
+        if let MoveLog::SetValue {
+            cell,
+            value,
+            strategy: Strategy::Guess,
+            undo_candidates,
+            ..
+        } = mov
+        {
+            if !givens.contains(&cell) {
+                let mut options = undo_candidates
+                    .alternative_options()
+                    .as_ref()
+                    .unwrap()
+                    .to_owned();
+                options.remove(&value);
 
-                    guesses.insert(cell, options);
-                }
+                guesses.insert(cell, options);
             }
         }
+        // }
     }
 
     GenSudoku {

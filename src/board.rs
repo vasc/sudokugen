@@ -222,7 +222,11 @@ impl Board {
                         print!("{} ", value);
                     }
                 } else {
-                    print!(". ")
+                    if l * width + c == h_idx {
+                        print!("{} ", ".".red().bold());
+                    } else {
+                        print!(". ")
+                    }
                 }
             }
             println!();
