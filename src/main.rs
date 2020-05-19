@@ -1,22 +1,26 @@
 pub mod board;
 pub mod solver;
+use clap::{App, Arg, SubCommand};
 
 // use solver::generate;
 use sudoku_generator::solver::generate;
 
 fn main() {
-    // for _ in 0..10000 {
-    //     // print!("{}", generate(3).board());
+    let matches = App::new("SudokuGen")
+        .version("0.1.0")
+        .about("Solve and generate sudoku puzzles in pure rust")
+        .subcommand(
+            SubCommand::with_name("gen")
+                .about("Generate sudoku puzzles")
+                .arg(Arg::with_name("INPUT").index(1)),
+        )
+        .subcommand(SubCommand::with_name("solve").about("Solve a sudoku puzzle"))
+        .get_matches();
 
-    //     let table: Board =
-    //         ".724..3........49.........2921...5.7..4.6...3......2...4..7.....3..196....5..4.21"
-    //             .parse()
-    //             .unwrap();
+    if let Some(_) = matches.subcommand_matches("gen") {
+        let res = generate(3);
+        let board = res.board();
 
-    //     solve(&table).unwrap();
-    // }
-
-    for _ in 0..1000 {
-        generate(3);
+        println!("{}", board);
     }
 }
