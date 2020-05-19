@@ -1,4 +1,6 @@
+#[cfg(debug)]
 use colored::Colorize;
+
 use std::collections::BTreeSet;
 use std::convert::TryInto;
 use std::error;
@@ -192,6 +194,22 @@ impl Board {
     #[must_use]
     pub fn cell_at(&self, l: usize, c: usize) -> CellLoc {
         CellLoc::at(l, c, self.base_size)
+    }
+
+    pub fn rotated(&self) -> Self {
+        let mut board = Board::new(self.base_size);
+        let width = self.base_size.pow(2);
+
+        for cell in self.iter_cells() {
+            let l = cell.col();
+            let c = width - 1 - cell.line();
+
+            if let Some(value) = self.get(&cell) {
+                board.set_at(l, c, value);
+            }
+        }
+
+        board
     }
 
     #[cfg(debug)]
