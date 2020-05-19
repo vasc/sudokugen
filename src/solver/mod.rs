@@ -5,8 +5,10 @@ use std::fmt;
 
 mod candidate_cache;
 mod generator;
+mod indexed_map;
 use candidate_cache::CandidateCache;
 pub use generator::generate;
+use indexed_map::Map;
 
 #[derive(Debug, Clone, Copy)]
 enum Strategy {
@@ -131,8 +133,7 @@ impl SudokuSolver {
     }
 
     fn guess(&self) -> (CellLoc, u8) {
-        return self
-            .candidate_cache
+        self.candidate_cache
             .possible_values()
             .iter()
             .min_by_key(|(_cell, possibilities)| possibilities.len())
@@ -144,7 +145,7 @@ impl SudokuSolver {
                     ),
                 )
             })
-            .expect("If the table is full then the method should have finished");
+            .expect("If the table is full then the method should have finished")
     }
 
     #[cfg(debug)]
@@ -251,7 +252,13 @@ impl SudokuSolver {
 
             if let Some(Strategy::Guess) = strategy {
                 // if possible values is not empty we need to try the remaining guesses
-                if !self.candidate_cache.possible_values()[&cell].is_empty() {
+                if !self
+                    .candidate_cache
+                    .possible_values()
+                    .get(&cell)
+                    .unwrap()
+                    .is_empty()
+                {
                     // remove the current guess from the options as well as removing this cell as a candidate for this value
                     self.candidate_cache.remove_candidate(&value, &cell);
 

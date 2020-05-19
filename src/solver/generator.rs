@@ -1,5 +1,6 @@
 use super::{solve, MoveLog, Strategy, SudokuSolver};
 use crate::board::{Board, CellLoc};
+use rayon::prelude::*;
 use std::collections::{BTreeSet, HashMap};
 
 impl SudokuSolver {}
@@ -60,7 +61,6 @@ pub fn generate(base_size: usize) -> GenSudoku {
                 guesses.insert(cell, options);
             }
         }
-        // }
     }
 
     GenSudoku {
@@ -80,7 +80,7 @@ impl GenSudoku {
 
     pub fn is_solution_unique(&self) -> bool {
         for (cell, options) in self.guesses.iter() {
-            if options.iter().any(|value| {
+            if options.par_iter().any(|value| {
                 let mut board = self.board.clone();
                 board.set(cell, *value);
                 solve(&board).is_ok()
@@ -109,7 +109,7 @@ fn remove_false_guesses(board: Board) -> Board {
             .expect("Guaranteed to be Some by the for loop");
         possible_values.remove(&value);
 
-        if possible_values.iter().all(|value| {
+        if possible_values.par_iter().all(|value| {
             let mut board = board.clone();
             board.set(&cell, *value);
             solve(&board).is_err()

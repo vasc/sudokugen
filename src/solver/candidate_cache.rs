@@ -1,3 +1,4 @@
+use super::indexed_map::{Indexed, IndexedMap, Map};
 use crate::board::{Board, CellLoc};
 use std::fmt;
 use std::{
@@ -25,6 +26,12 @@ impl CellLoc {
             Block::Col(self.col()),
             Block::Square(self.square()),
         ]
+    }
+}
+
+impl Indexed for CellLoc {
+    fn idx(&self) -> usize {
+        self.get_index()
     }
 }
 
@@ -62,7 +69,7 @@ pub struct Candidates<'a> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct CandidateCache {
-    possible_values: HashMap<CellLoc, BTreeSet<u8>>,
+    possible_values: IndexedMap<CellLoc, BTreeSet<u8>>,
     candidate_cells: HashMap<(Block, u8), BTreeSet<CellLoc>>,
 }
 
@@ -96,13 +103,11 @@ impl CandidateCache {
         candidate_cache
     }
 
-    fn calculate_possible_values(board: &Board) -> HashMap<CellLoc, BTreeSet<u8>> {
-        let mut possible_values = HashMap::with_capacity(board.get_base_size().pow(4));
+    fn calculate_possible_values(board: &Board) -> IndexedMap<CellLoc, BTreeSet<u8>> {
+        let mut possible_values = IndexedMap::new(board.get_base_size().pow(4));
         for cell in board.iter_cells() {
             if let Some(values) = cell.get_possible_values(&board) {
                 possible_values.insert(cell, values);
-            } else {
-                possible_values.remove(&cell);
             }
         }
         possible_values
@@ -122,16 +127,14 @@ impl CandidateCache {
             let candidates = self.candidate_cells.remove(&block.with_value(value));
 
             if let Some(candidates) = candidates {
-                moves.append(
+                moves.extend(
                     &mut candidates
                         .iter()
-                        .map(|candidate| (value, *candidate, *block))
-                        .collect(),
+                        .map(|candidate| (value, *candidate, *block)),
                 );
             }
 
             // remove the cell as candidate for all other values in this line, col and square
-
             if let Some(other_values) = &maybe_options {
                 for other_value in other_values {
                     if *other_value != value {
@@ -256,7 +259,7 @@ impl CandidateCache {
             })
     }
 
-    pub fn possible_values(&self) -> &HashMap<CellLoc, BTreeSet<u8>> {
+    pub fn possible_values(&self) -> &IndexedMap<CellLoc, BTreeSet<u8>> {
         &self.possible_values
     }
 
@@ -283,7 +286,10 @@ impl CandidateCache {
 mod tests {
     use super::Block::{Col, Line, Square};
     use super::CandidateCache;
-    use crate::board::{Board, CellLoc};
+    use crate::{
+        board::{Board, CellLoc},
+        solver::indexed_map::Map,
+    };
     use std::collections::BTreeSet;
 
     fn candidate_cache_from_board(board: &Board) -> CandidateCache {
@@ -406,7 +412,7 @@ mod tests {
         // column already contains 3 therefore it's removed from possible locations
         assert_eq!(cc.candidates_at(&Col(0), &3), None);
 
-        // setting the 3 above remove the other possible location for a 3 in square 0
+        // setting the 3 above removes the other possible location for a 3 in square 0
         assert_eq!(
             cc.candidates_at(&Square(0), &3),
             Some(&vec![board.cell_at(1, 1)].into_iter().collect()),

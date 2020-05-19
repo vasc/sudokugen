@@ -58,7 +58,7 @@ impl CellLoc {
         CellLoc { idx, base_size }
     }
 
-    fn get_index(&self) -> usize {
+    pub fn get_index(&self) -> usize {
         self.idx
     }
 
@@ -194,6 +194,7 @@ impl Board {
         CellLoc::at(l, c, self.base_size)
     }
 
+    #[cfg(debug)]
     pub fn print(&self, highlight: Option<CellLoc>) {
         let h_idx = match highlight {
             Some(cell) => cell.idx,
