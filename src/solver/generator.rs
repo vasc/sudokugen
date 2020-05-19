@@ -12,7 +12,7 @@ pub struct GenSudoku {
 }
 
 pub fn generate(base_size: usize) -> GenSudoku {
-    let mut solver = SudokuSolver::new(&Board::new(base_size));
+    let mut solver = SudokuSolver::new_random(&Board::new(base_size));
     solver
         .solve()
         .expect("Should always be possible to solve an empty board");

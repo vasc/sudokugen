@@ -1,14 +1,15 @@
-use crate::board::{Board, CellLoc};
-use std::collections::BTreeSet;
-use std::error;
-use std::fmt;
-
 mod candidate_cache;
 mod generator;
 mod indexed_map;
+
+use crate::board::{Board, CellLoc};
 use candidate_cache::CandidateCache;
 pub use generator::generate;
 use indexed_map::Map;
+use rand::seq::IteratorRandom;
+use std::collections::BTreeSet;
+use std::error;
+use std::fmt;
 
 #[derive(Debug, Clone, Copy)]
 enum Strategy {
@@ -67,9 +68,9 @@ impl error::Error for UnsolvableError {
 #[derive(Debug)]
 pub struct SudokuSolver {
     board: Board,
-    // possible_values: HashMap<CellLoc, BTreeSet<u8>>,
     candidate_cache: CandidateCache,
     move_log: Vec<MoveLog>,
+    random: bool,
 }
 
 pub fn solve(board: &Board) -> Result<Board, UnsolvableError> {
@@ -80,15 +81,21 @@ pub fn solve(board: &Board) -> Result<Board, UnsolvableError> {
 
 impl SudokuSolver {
     pub fn new(board: &Board) -> Self {
-        // let possible_values = SudokuSolver::calculate_possible_values(board);
         let candidate_cache = CandidateCache::from_board(&board);
 
         let solver = SudokuSolver {
             board: board.clone(),
             move_log: Vec::new(),
             candidate_cache,
+            random: false,
         };
 
+        solver
+    }
+
+    fn new_random(board: &Board) -> Self {
+        let mut solver = Self::new(board);
+        solver.random = true;
         solver
     }
 
@@ -133,17 +140,23 @@ impl SudokuSolver {
     }
 
     fn guess(&self) -> (CellLoc, u8) {
+        let rng = if self.random {
+            Some(rand::thread_rng())
+        } else {
+            None
+        };
+
         self.candidate_cache
             .possible_values()
             .iter()
             .min_by_key(|(_cell, possibilities)| possibilities.len())
             .map(|(cell, possibilities)| {
-                (
-                    *cell,
-                    *possibilities.iter().next().expect(
-                        "Empty possibilities should have been caught while registering a move",
-                    ),
-                )
+                let value = rng
+                    .and_then(|mut rng| possibilities.iter().choose(&mut rng))
+                    .or_else(|| possibilities.iter().next())
+                    .expect("Empty possibilities should have been caught while registering a move");
+
+                (*cell, *value)
             })
             .expect("If the table is full then the method should have finished")
     }
