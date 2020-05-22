@@ -71,6 +71,17 @@ impl<'a, K, V> Iterator for Iter<'a, K, V> {
 
         None
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let size = self.keys.len();
+        (size, Some(size))
+    }
+
+    fn nth(&mut self, n: usize) -> Option<Self::Item> {
+        self.idx += n;
+
+        self.next()
+    }
 }
 
 pub struct Entry<'a, K, V> {
@@ -96,13 +107,14 @@ impl<K: Indexed, V: Clone + Default> Map<K, V> for IndexedMap<K, V> {
             panic!("Index out of bounds, index value for key is bigger than the map capacity.");
         }
 
-        if let Some(_) = self.keys.get(idx) {
+        if let Some(Some(_)) = self.keys.get(idx) {
             let old_val = std::mem::take(&mut self.values[idx]);
             self.values[idx] = value;
             self.keys[idx] = Some(key);
             Some(old_val)
         } else {
             self.values[idx] = value;
+            self.keys[idx] = Some(key);
             None
         }
     }
@@ -164,5 +176,96 @@ impl<K: Indexed, V: Clone + Default> Map<K, V> for IndexedMap<K, V> {
             keys: &self.keys,
             values: &self.values,
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::{Indexed, IndexedMap, Map};
+
+    impl Indexed for usize {
+        fn idx(&self) -> usize {
+            *self
+        }
+    }
+
+    #[test]
+    fn insert() {
+        let mut map = IndexedMap::new(1);
+        let old = map.insert(0, ());
+        assert_eq!(old, None);
+        assert_eq!(map.get(&0), Some(&()));
+    }
+    #[test]
+    fn remove() {
+        let mut map = IndexedMap::new(1);
+        map.insert(0, ());
+
+        assert_eq!(map.remove(&0), Some(()));
+        assert_eq!(map.get(&0), None);
+    }
+    #[test]
+    fn is_empty() {
+        let mut map = IndexedMap::new(1);
+
+        assert!(map.is_empty());
+        map.insert(0, ());
+        assert!(!map.is_empty());
+    }
+    #[test]
+    fn keys() {
+        let mut map = IndexedMap::new(4);
+        map.insert(0, 0_i32);
+        map.insert(3, 1_i32);
+
+        assert_eq!(map.keys().collect::<Vec<&usize>>(), vec![&0, &3]);
+    }
+    #[test]
+    fn get() {
+        let mut map = IndexedMap::new(1);
+        map.insert(0, ());
+        assert_eq!(map.get(&0), Some(&()));
+    }
+    #[test]
+    fn get_mut() {
+        let mut map = IndexedMap::new(1);
+        map.insert(0, 0);
+
+        let val = map.get_mut(&0).unwrap();
+        assert_eq!(val, &0);
+        *val = 1;
+        assert_eq!(map.get(&0), Some(&1));
+    }
+    #[test]
+    fn entry_is_mut() {
+        let mut map = IndexedMap::new(1);
+        map.insert(0, Some(0));
+        let mut entry = map.entry(0);
+        let value = entry.or_default();
+
+        assert_eq!(value, &mut Some(0));
+
+        *value = Some(1);
+        assert_eq!(map.get(&0), Some(&Some(1)));
+    }
+
+    #[test]
+    fn entry_default() {
+        let mut map: IndexedMap<usize, Option<()>> = IndexedMap::new(1);
+        let mut entry = map.entry(0);
+
+        assert_eq!(entry.or_default(), &mut None);
+    }
+
+    #[test]
+    fn iter() {
+        let mut map = IndexedMap::new(2);
+        map.insert(0, 0_i32);
+        map.insert(1, 1_i32);
+
+        assert_eq!(
+            map.iter().collect::<Vec<(&usize, &i32)>>(),
+            vec![(&0, &0), (&1, &1)]
+        );
     }
 }
