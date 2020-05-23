@@ -1,5 +1,5 @@
 mod candidate_cache;
-mod generator;
+pub mod generator;
 mod indexed_map;
 
 use crate::board::{Board, CellLoc};
