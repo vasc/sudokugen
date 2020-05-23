@@ -3,7 +3,7 @@ pub mod solver;
 use clap::{App, Arg, SubCommand};
 
 // use solver::generate;
-use sudoku_generator::solver::generate;
+use sudokugen::solver::generate;
 
 fn main() {
     let matches = App::new("SudokuGen")

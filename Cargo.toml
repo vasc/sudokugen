@@ -1,5 +1,5 @@
 [package]
-name = "sudoku-generator"
+name = "sudokugen"
 version = "0.1.0"
 authors = ["Vasco Fernandes <vasco.box@gmail.com>"]
 edition = "2018"
