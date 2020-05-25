@@ -13,9 +13,6 @@
 //! [`CellLoc`]: struct.CellLoc.html
 //! [`cell_at`]: struct.Board.html#method.cell_at
 
-#[cfg(debug)]
-use colored::Colorize;
-
 use std::collections::BTreeSet;
 use std::convert::TryInto;
 use std::error;
@@ -506,46 +503,6 @@ impl Board {
         }
 
         board
-    }
-
-    #[cfg(debug)]
-    pub fn print(&self, highlight: Option<CellLoc>) {
-        let h_idx = match highlight {
-            Some(cell) => cell.idx,
-            None => self.base_size.pow(4) + 1,
-        };
-
-        let width = self.base_size.pow(2);
-
-        for l in 0..width {
-            if l != 0 && l % self.base_size == 0 {
-                println!(
-                    "{}",
-                    (0..width * 2 + self.base_size - 2)
-                        .map(|_| "-")
-                        .collect::<String>()
-                );
-            }
-            for c in 0..width {
-                if c != 0 && c % self.base_size == 0 {
-                    print!("|")
-                }
-                if let Some(value) = self.cells[l * width + c] {
-                    if l * width + c == h_idx {
-                        print!("{} ", value.to_string().red().bold());
-                    } else {
-                        print!("{} ", value);
-                    }
-                } else {
-                    if l * width + c == h_idx {
-                        print!("{} ", ".".red().bold());
-                    } else {
-                        print!(". ")
-                    }
-                }
-            }
-            println!();
-        }
     }
 }
 
