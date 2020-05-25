@@ -3,7 +3,7 @@ pub mod solver;
 use clap::{App, Arg, SubCommand};
 
 // use solver::generate;
-use sudokugen::solver::generate;
+use sudokugen::generate;
 
 fn main() {
     let matches = App::new("SudokuGen")
@@ -18,9 +18,10 @@ fn main() {
         .get_matches();
 
     if let Some(_) = matches.subcommand_matches("gen") {
-        let res = generate(3);
-        let board = res.board();
+        let puzzle = generate(3);
+        // let board = res.board();
 
-        println!("{}", board);
+        println!("Puzzle\n{}", puzzle.board());
+        println!("Solution\n{}", puzzle.solution());
     }
 }

@@ -1,6 +1,6 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use sudokugen::solver::{generate, solve};
-
+use sudokugen::generate;
+use sudokugen::solve;
 fn solve_benchmark(c: &mut Criterion) {
     let table = ".724..3........49.........2921...5.7..4.6...3......2...4..7.....3..196....5..4.21"
         .parse()

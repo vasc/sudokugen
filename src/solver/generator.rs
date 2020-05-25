@@ -1,16 +1,51 @@
+//! Provides a function and a utility struct to help you generate new puzzles.
+//! The [`generate`] function takes the base size of the board (see [`Board::new`] for
+//! an explanation of base size) and returns a unique, minimal puzzle together with
+//! the solution for that puzzle.
+//!
+//! The [`generate`] function returns a [`GenSudoku`] struct from which you can extract the
+//! generated puzzle and respective solution, using it's [`board`] and [`solution`] methods
+//! respectively.
+//!
+//! [`generate`]: fn.generate.html
+//! [`Board::new`]: ../../board/struct.Board.html#method.new
+//! [`GenSudoku`]: struct.GenSudoku.html
+//! [`board`]: struct.GenSudoku.html#method.board
+//! [`solution`]: struct.GenSudoku.html#method.solution
+
 use super::{solve, MoveLog, Strategy, SudokuSolver};
 use crate::board::{Board, CellLoc};
 use rayon::prelude::*;
 use std::collections::{BTreeSet, HashMap};
 
-impl SudokuSolver {}
-
+/// This structure represents a generated board and its solution
+///
+/// This struct can only be created by calling the [`generate`] function, which will create
+/// a random board with a unique solution.
+///
+/// [`generate`]: ../fn.generate.html
 pub struct GenSudoku {
     board: Board,
     solution: Board,
     guesses: HashMap<CellLoc, BTreeSet<u8>>,
 }
 
+/// Generate a new sudoku board with a unique solution.
+///
+/// The generate function creates a random board with a unique solution.
+/// It does this by "solving" the empty board using random guesses whenever
+/// it cannot find the correct solution. Once the empty board is solved,
+/// it iterates over each of the guesses and removes it if that guess is the
+/// only valid option for that cell.
+///
+/// ```
+/// use sudokugen::solver::generator::generate;
+///
+/// let puzzle = generate(3);
+///
+/// println!("{}", puzzle.board());
+/// println!("{}", puzzle.solution());
+/// ```
 pub fn generate(base_size: usize) -> GenSudoku {
     let mut solver = SudokuSolver::new_random(&Board::new(base_size));
     solver
@@ -41,7 +76,6 @@ pub fn generate(base_size: usize) -> GenSudoku {
         .collect();
     let mut guesses = HashMap::new();
     for mov in solver.move_log {
-        // if let Some(Strategy::Guess) = mov.get_strategy() {
         if let MoveLog::SetValue {
             cell,
             value,
@@ -71,13 +105,38 @@ pub fn generate(base_size: usize) -> GenSudoku {
 }
 
 impl GenSudoku {
+    /// Returns the minimal board generated
+    ///
+    /// ```
+    /// use sudokugen::generate;
+    ///
+    /// let gen = generate(3);
+    /// println!("{}", gen.board());
+    /// ```
     pub fn board(&self) -> &Board {
         &self.board
     }
+
+    /// Returns the solution for the generated board
+    ///
+    /// ```
+    /// use sudokugen::generate;
+    ///
+    /// let gen = generate(3);
+    /// println!("{}", gen.solution());
+    /// ```
     pub fn solution(&self) -> &Board {
         &self.solution
     }
 
+    /// Verify that the solution for the generated board is unique.
+    ///
+    /// ```
+    /// use sudokugen::generate;
+    ///
+    /// let gen = generate(3);
+    /// assert!(gen.is_solution_unique());
+    /// ```
     pub fn is_solution_unique(&self) -> bool {
         for (cell, options) in self.guesses.iter() {
             if options.par_iter().any(|value| {
@@ -93,8 +152,6 @@ impl GenSudoku {
     }
 }
 
-// TODO does not make sense for this to be recursive, removing 1 false guess does not make
-// it more likely that other previously kept guesses would turn out to be false
 fn remove_false_guesses(board: Board) -> Board {
     let mut cur_board = board.clone();
 
@@ -102,7 +159,7 @@ fn remove_false_guesses(board: Board) -> Board {
         let mut board = cur_board.clone();
 
         // this unidiomatic and slightly fragile rust is necessary to avoid cloning
-        // board on every loop run
+        // the board on every loop run
         let value = board.unset(&cell).expect("Guarateed by the loop above");
         let mut possible_values = cell
             .get_possible_values(&board)

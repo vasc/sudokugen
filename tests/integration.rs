@@ -1,5 +1,6 @@
 use sudokugen::board::Board;
-use sudokugen::solver::{generate, solve};
+use sudokugen::generate;
+use sudokugen::solver::solve;
 
 #[test]
 fn solve_sudoku_simple() {

@@ -1,10 +1,43 @@
+//! Offers a function to help you solve sudoku puzzles.
+//! The [`solve`] function takes a sudoku puzzle and returns a new board with
+//! the solution, if there is one.
+//!
+//! ```
+//! use sudokugen::solver::solve;
+//! use sudokugen::board::Board;
+//!
+//! let board: Board =
+//!     ". . . | 4 . . | 8 7 .
+//!      4 . 3 | . . . | . . .
+//!      2 . . | . . 3 | . . 9
+//!      ---------------------
+//!      . . 6 | 2 . . | . . 7
+//!      . . . | 9 . 6 | . . .
+//!      3 . 9 | . 8 . | . . .
+//!      ---------------------
+//!      . . . | . . . | . 4 .
+//!      8 7 2 | 5 . . | . . .
+//!      . . . | 7 2 . | 6 . .
+//!     "
+//!        .parse()
+//!        .unwrap();
+//!
+//! assert_eq!(
+//!     solve(&board).unwrap(),
+//!     "695412873413879526287653419146235987728946135359187264561398742872564391934721658"
+//!     .parse()
+//!     .unwrap()
+//! );
+//! ```
+//!
+//! [`solve`]: fn.solve.html
+
 mod candidate_cache;
 pub mod generator;
 mod indexed_map;
 
 use crate::board::{Board, CellLoc};
 use candidate_cache::CandidateCache;
-pub use generator::generate;
 use indexed_map::Map;
 use rand::seq::IteratorRandom;
 use std::collections::BTreeSet;
@@ -48,6 +81,7 @@ impl MoveLog {
     }
 }
 
+/// An errror to reperesent that this board is not solvable in it's current state
 #[derive(Debug, Clone, PartialEq)]
 pub struct UnsolvableError;
 
@@ -66,13 +100,58 @@ impl error::Error for UnsolvableError {
 }
 
 #[derive(Debug)]
-pub struct SudokuSolver {
+struct SudokuSolver {
     board: Board,
     candidate_cache: CandidateCache,
     move_log: Vec<MoveLog>,
     random: bool,
 }
 
+/// Helper function to solve a sudoku puzzle.
+///
+/// Given a reference to a [`board`], this function returns a new [`board`] representing
+/// a solution to that sudoku puzzle.
+///
+/// ```
+/// use sudokugen::solver::solve;
+/// use sudokugen::board::Board;
+///
+/// let board: Board =
+///     ". . . | 4 . . | 8 7 .
+///      4 . 3 | . . . | . . .
+///      2 . . | . . 3 | . . 9
+///      ---------------------
+///      . . 6 | 2 . . | . . 7
+///      . . . | 9 . 6 | . . .
+///      3 . 9 | . 8 . | . . .
+///      ---------------------
+///      . . . | . . . | . 4 .
+///      8 7 2 | 5 . . | . . .
+///      . . . | 7 2 . | 6 . .
+///     "
+///        .parse()
+///        .unwrap();
+///
+/// assert_eq!(
+///     solve(&board).unwrap(),
+///     "695412873413879526287653419146235987728946135359187264561398742872564391934721658"
+///     .parse()
+///     .unwrap()
+/// );
+/// ```
+///
+/// If the puzzle has no possible solutions, this function returns [`UnsolvableError`].
+///
+/// ```
+/// # use sudokugen::solver::solve;
+/// # use sudokugen::board::Board;
+/// #
+/// let board = "123. ...4 .... ....".parse().unwrap();
+/// assert!(matches!(solve(&board), Err(UnsolvableError)));
+/// ```
+///
+/// [`board`]: ../board/struct.Board.html
+/// [`UnsolvableError`]: struct.UnsolvableError.html
 pub fn solve(board: &Board) -> Result<Board, UnsolvableError> {
     let mut solver = SudokuSolver::new(board);
     solver.solve()?;
@@ -80,7 +159,7 @@ pub fn solve(board: &Board) -> Result<Board, UnsolvableError> {
 }
 
 impl SudokuSolver {
-    pub fn new(board: &Board) -> Self {
+    fn new(board: &Board) -> Self {
         let candidate_cache = CandidateCache::from_board(&board);
 
         let solver = SudokuSolver {
@@ -99,7 +178,7 @@ impl SudokuSolver {
         solver
     }
 
-    pub fn solve(&mut self) -> Result<(), UnsolvableError> {
+    fn solve(&mut self) -> Result<(), UnsolvableError> {
         if self
             .candidate_cache
             .possible_values()
