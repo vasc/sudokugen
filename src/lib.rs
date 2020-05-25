@@ -112,7 +112,7 @@
 //! to solve a difficult puzzle, that is around 3000 puzzles per second.
 //!
 //! The [`generate`] function is less optimized and makes heavy usage of [`solve`] without trying to
-//! re-use repeated computations, as such it's much slower clocking at about 150ms to generate
+//! re-use repeated computations, as such it's much slower clocking at about 18ms to generate
 //! a new puzzle in my benchmarks.
 //!
 //! You can run your own benchmarks with `cargo bench`
