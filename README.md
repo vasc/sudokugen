@@ -104,9 +104,9 @@ a new puzzle in my benchmarks.
 
 You can run your own benchmarks with `cargo bench`
 
-[`solve`]: https://docs.rs/sudokugen/solver/fn.solve.html
-[`solver`]: https://docs.rs/sudokugen/solver/index.html
-[`generate`]: https://docs.rs/sudokugen/solver/generator/fn.generate.html
-[`generator`]: https://docs.rs/sudokugen/solver/generator/index.html
-[`Board`]: https://docs.rs/sudokugen/board/struct.Board.html
-[`board`]: https://docs.rs/sudokugen/board/index.html
+[`solve`]: https://docs.rs/sudokugen/0.1.0/sudokugen/solver/fn.solve.html
+[`solver`]: https://docs.rs/sudokugen/0.1.0/sudokugen/solver/index.html
+[`generate`]: https://docs.rs/sudokugen/0.1.0/sudokugen/solver/generator/fn.generate.html
+[`generator`]: https://docs.rs/sudokugen/0.1.0/sudokugen/solver/generator/index.html
+[`Board`]: https://docs.rs/sudokugen/0.1.0/sudokugen/board/struct.Board.html
+[`board`]: https://docs.rs/sudokugen/0.1.0/sudokugen/board/index.html
