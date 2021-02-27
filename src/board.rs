@@ -302,12 +302,10 @@ impl Board {
     /// ```
     #[must_use]
     pub fn new(base_size: usize) -> Self {
-        let table = Board {
+        Board {
             base_size,
             cells: vec![None; base_size.pow(4)],
-        };
-
-        table
+        }
     }
 
     /// Returns the base size of this board, check the documentation of [`new`] for an
