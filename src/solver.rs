@@ -162,14 +162,12 @@ impl SudokuSolver {
     fn new(board: &Board) -> Self {
         let candidate_cache = CandidateCache::from_board(&board);
 
-        let solver = SudokuSolver {
+        SudokuSolver {
             board: board.clone(),
             move_log: Vec::new(),
             candidate_cache,
             random: false,
-        };
-
-        solver
+        }
     }
 
     fn new_random(board: &Board) -> Self {
@@ -293,9 +291,9 @@ impl SudokuSolver {
 
         if let Ok(ref mut moves) = self.register_move(Strategy::Guess, &cell, value) {
             self.move_log.append(moves);
-            return Ok(());
+            Ok(())
         } else {
-            return self.backtrack().and(Ok(()));
+            self.backtrack().and(Ok(()))
         }
     }
 
@@ -384,7 +382,7 @@ impl SudokuSolver {
             }
         }
 
-        return Err(UnsolvableError);
+        Err(UnsolvableError)
     }
 }
 
