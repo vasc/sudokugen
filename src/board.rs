@@ -7,11 +7,6 @@
 //! the [`CellLoc`] structure to reference a location in the board, but
 //! the [`cell_at`] method of the board instance is more convenient to address
 //! cells of a specific board.
-//!
-//! [`Board`]: struct.Board.html
-//! [`new`]: struct.Board.html#method.new
-//! [`CellLoc`]: struct.CellLoc.html
-//! [`cell_at`]: struct.Board.html#method.cell_at
 
 use std::collections::BTreeSet;
 use std::convert::TryInto;
@@ -19,13 +14,68 @@ use std::error;
 use std::fmt;
 use std::str::FromStr;
 
+use error::Error;
+use fmt::Display;
+
+/// Represents the size of the board that sudukogen can work with.
+/// Currently only 4x4, 9x9, and 16x16 boards are allowed.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum BoardSize {
+    /// A board with 16 cells, in a 4 by 4 square
+    FourByFour,
+    /// A board with 81 cells, in a 9 by 9 square
+    NineByNine,
+    /// A board with 337 cells, in a 16 by 16 square
+    SixteenBySixteen,
+}
+
+impl BoardSize {
+    /// A sudoku board is a square of N by N squares, each of them composed of N by N cells
+    /// the base size of a board is N. For instance in a 9 by 9 board, composed of 3 by 3 squares,
+    /// each of them composed of 3 by 3 cells, the base size is 3.
+    pub fn get_base_size(&self) -> usize {
+        match self {
+            Self::FourByFour => 2,
+            Self::NineByNine => 3,
+            Self::SixteenBySixteen => 4,
+        }
+    }
+}
+
+/// Error returned when a `base_size: usize` cannot be converted to a board size,
+/// currently only 2, 3, and 4 can be converted back to a board size.
+#[derive(Debug)]
+pub struct BoardSizeOutOfRangeError(usize);
+impl Display for BoardSizeOutOfRangeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_fmt(format_args!(
+            "Board size is out of range, {} is not an accepted base size for a board",
+            self.0,
+        ))
+    }
+}
+impl Error for BoardSizeOutOfRangeError {}
+
+impl TryInto<BoardSize> for usize {
+    type Error = BoardSizeOutOfRangeError;
+
+    fn try_into(self) -> Result<BoardSize, Self::Error> {
+        match self {
+            2 => Ok(BoardSize::FourByFour),
+            3 => Ok(BoardSize::NineByNine),
+            4 => Ok(BoardSize::SixteenBySixteen),
+            _ => Err(BoardSizeOutOfRangeError(self)),
+        }
+    }
+}
+
 /// Represents a sudoku board.
 ///
 /// This is usually the entry point to use any of the functionality in this library.
-/// You can create a new board by simply calling new and specifying the base size of the board.
+/// You can create a new board by simply calling new and specifying the size of the board.
 /// ```
-/// use sudokugen::board::Board;
-/// let board: Board = Board::new(3);
+/// use sudokugen::{Board, BoardSize};
+/// let board: Board = Board::new(BoardSize::NineByNine);
 /// ```
 ///
 /// Or you can parse an existing representation of a board using the [`from_str`] method of the [`FromStr`] trait.
@@ -61,7 +111,7 @@ pub struct Board {
 ///
 /// CellLoc structures are a shallow
 /// abstraction of the indice of the cell in the board, using them allows access
-/// helper functions to navigate the board and access cell by a more intuitive
+/// helper functions to navigate the board and access each cell by a more intuitive
 /// line/column pair
 pub struct CellLoc {
     base_size: usize,
@@ -82,18 +132,19 @@ impl fmt::Debug for CellLoc {
 
 impl CellLoc {
     /// Returns a cell representing the location at line `l` and column `c`.
-    /// The third argument represents the intrinsic size of the board, for a
-    /// regular 9 by 9 board the base size is 3 (i.e. sqrt(9))
+    /// The third argument represents the size of the board.
     ///
     /// ```
+    /// use sudokugen::BoardSize;
     /// use sudokugen::board::CellLoc;
     ///
-    /// let cell = CellLoc::at(0, 0, 3);
+    /// let cell = CellLoc::at(0, 0, BoardSize::NineByNine);
     /// assert_eq!(cell.line(), 0);
     /// assert_eq!(cell.col(), 0);
     /// ```
     ///
-    pub fn at(l: usize, c: usize, base_size: usize) -> Self {
+    pub fn at(l: usize, c: usize, board_size: BoardSize) -> Self {
+        let base_size = board_size.get_base_size();
         CellLoc {
             idx: l * base_size.pow(2) + c,
             base_size,
@@ -101,25 +152,27 @@ impl CellLoc {
     }
 
     /// Reference a new location in the board. `idx` is the 0 based flat ordering of all cells
-    /// in the board and base_size is the intrinsic size of the board, for a
-    /// regular 9 by 9 board the base size is 3 (i.e. sqrt(9)).
+    /// in the board.
     ///
     /// ```
     /// use sudokugen::board::CellLoc;
+    /// use sudokugen::BoardSize;
     ///
-    /// let cell = CellLoc::new(9, 3);
+    /// let cell = CellLoc::new(9, BoardSize::NineByNine);
     /// assert_eq!((cell.line(), cell.col()), (1, 0));
     /// ```
-    pub fn new(idx: usize, base_size: usize) -> Self {
+    pub fn new(idx: usize, board_size: BoardSize) -> Self {
+        let base_size = board_size.get_base_size();
         CellLoc { idx, base_size }
     }
 
     /// Returns the 0 based flat index of this cell location
     ///
     /// ```
+    /// use sudokugen::BoardSize;
     /// use sudokugen::board::CellLoc;
     ///
-    /// let cell = CellLoc::new(9, 3);
+    /// let cell = CellLoc::new(9, BoardSize::NineByNine);
     /// assert_eq!(cell.get_index(), 9);
     /// ```
     pub fn get_index(&self) -> usize {
@@ -132,9 +185,9 @@ impl CellLoc {
     ///
     /// ```
     /// use sudokugen::board::CellLoc;    
-    /// use sudokugen::board::Board;
+    /// use sudokugen::{Board, BoardSize};
     ///
-    /// let cell = CellLoc::at(0, 1, 2);
+    /// let cell = CellLoc::at(0, 1, BoardSize::FourByFour);
     /// let board: Board = "
     /// 1 . | . .
     /// . . | . .
@@ -173,8 +226,9 @@ impl CellLoc {
     ///
     /// ```
     /// use sudokugen::board::CellLoc;
+    /// use sudokugen::BoardSize;
     ///
-    /// let cell = CellLoc::at(0, 0, 3);
+    /// let cell = CellLoc::at(0, 0, BoardSize::NineByNine);
     /// assert_eq!(cell.line(), 0);
     /// ```
     pub fn line(&self) -> usize {
@@ -184,9 +238,10 @@ impl CellLoc {
     /// Returns the 0 based column number for this cell location
     ///
     /// ```
+    /// use sudokugen::BoardSize;
     /// use sudokugen::board::CellLoc;
     ///
-    /// let cell = CellLoc::at(0, 0, 3);
+    /// let cell = CellLoc::at(0, 0, BoardSize::NineByNine);
     /// assert_eq!(cell.col(), 0);
     /// ```
     pub fn col(&self) -> usize {
@@ -197,9 +252,10 @@ impl CellLoc {
     /// Squares are numbered line first and then columns.
     ///
     /// ```
+    /// use sudokugen::BoardSize;
     /// use sudokugen::board::CellLoc;
     ///
-    /// let cell = CellLoc::at(4, 3, 3);
+    /// let cell = CellLoc::at(4, 3, BoardSize::NineByNine);
     /// assert_eq!(cell.square(), 4);
     /// ```
     pub fn square(&self) -> usize {
@@ -213,15 +269,16 @@ impl CellLoc {
     ///
     /// ```
     /// use sudokugen::board::CellLoc;
+    /// use sudokugen::BoardSize;
     ///
-    /// let cell = CellLoc::at(0, 0, 2);
+    /// let cell = CellLoc::at(0, 0, BoardSize::FourByFour);
     /// assert_eq!(
     ///     cell.iter_line().collect::<Vec<CellLoc>>(),
     ///     vec![
-    ///         CellLoc::at(0, 0, 2),
-    ///         CellLoc::at(0, 1, 2),
-    ///         CellLoc::at(0, 2, 2),
-    ///         CellLoc::at(0, 3, 2),
+    ///         CellLoc::at(0, 0, BoardSize::FourByFour),
+    ///         CellLoc::at(0, 1, BoardSize::FourByFour),
+    ///         CellLoc::at(0, 2, BoardSize::FourByFour),
+    ///         CellLoc::at(0, 3, BoardSize::FourByFour),
     ///     ]
     ///);
     pub fn iter_line(&self) -> impl Iterator<Item = CellLoc> {
@@ -237,15 +294,16 @@ impl CellLoc {
     ///
     /// ```
     /// use sudokugen::board::CellLoc;
+    /// use sudokugen::BoardSize;
     ///
-    /// let cell = CellLoc::at(0, 0, 2);
+    /// let cell = CellLoc::at(0, 0, BoardSize::FourByFour);
     /// assert_eq!(
     ///     cell.iter_col().collect::<Vec<CellLoc>>(),
     ///     vec![
-    ///         CellLoc::at(0, 0, 2),
-    ///         CellLoc::at(1, 0, 2),
-    ///         CellLoc::at(2, 0, 2),
-    ///         CellLoc::at(3, 0, 2),
+    ///         CellLoc::at(0, 0, BoardSize::FourByFour),
+    ///         CellLoc::at(1, 0, BoardSize::FourByFour),
+    ///         CellLoc::at(2, 0, BoardSize::FourByFour),
+    ///         CellLoc::at(3, 0, BoardSize::FourByFour),
     ///     ]
     ///);
     pub fn iter_col(&self) -> impl Iterator<Item = CellLoc> {
@@ -261,15 +319,16 @@ impl CellLoc {
     ///
     /// ```
     /// use sudokugen::board::CellLoc;
+    /// use sudokugen::BoardSize;
     ///
-    /// let cell = CellLoc::at(0, 0, 2);
+    /// let cell = CellLoc::at(0, 0, BoardSize::FourByFour);
     /// assert_eq!(
     ///     cell.iter_square().collect::<Vec<CellLoc>>(),
     ///     vec![
-    ///         CellLoc::at(0, 0, 2),
-    ///         CellLoc::at(0, 1, 2),
-    ///         CellLoc::at(1, 0, 2),
-    ///         CellLoc::at(1, 1, 2),
+    ///         CellLoc::at(0, 0, BoardSize::FourByFour),
+    ///         CellLoc::at(0, 1, BoardSize::FourByFour),
+    ///         CellLoc::at(1, 0, BoardSize::FourByFour),
+    ///         CellLoc::at(1, 1, BoardSize::FourByFour),
     ///     ]
     ///);
     pub fn iter_square(&self) -> impl Iterator<Item = CellLoc> {
@@ -291,38 +350,31 @@ impl CellLoc {
 }
 
 impl Board {
-    /// Creates a new empty board. The `base_size` parameter represents the size
-    /// of the board, base size is the square root of the the width of the board.
-    /// so for instance a 9x9 board has a base size of 3, a 16x16 board has a base size
-    /// of 4, etc.
+    /// Creates a new empty board of the specified size.
     ///
     /// ```
-    /// use sudokugen::board::Board;
-    /// let board: Board = Board::new(3);
+    /// use sudokugen::{Board, BoardSize};
+    ///
+    /// let board: Board = Board::new(BoardSize::NineByNine);
     /// ```
     #[must_use]
-    pub fn new(base_size: usize) -> Self {
-        let table = Board {
+    pub fn new(board_size: BoardSize) -> Self {
+        let base_size = board_size.get_base_size();
+        Board {
             base_size,
             cells: vec![None; base_size.pow(4)],
-        };
-
-        table
+        }
     }
 
-    /// Returns the base size of this board, check the documentation of [`new`] for an
-    /// explanation of base size.
-    ///
-    /// [`new`]: #method.new
-    ///
+    /// Returns the board size of this board..
     /// ```
-    /// use sudokugen::board::Board;
-    /// let board: Board = Board::new(3);
+    /// use sudokugen::{Board, BoardSize};
+    /// let board: Board = Board::new(BoardSize::NineByNine);
     ///
-    /// assert_eq!(board.get_base_size(), 3);
+    /// assert_eq!(board.board_size(), BoardSize::NineByNine);
     /// ```
-    pub fn get_base_size(&self) -> usize {
-        self.base_size
+    pub fn board_size(&self) -> BoardSize {
+        self.base_size.try_into().unwrap()
     }
 
     /// Sets the value of a cell in the board using the [`CellLoc`] structure
@@ -331,11 +383,11 @@ impl Board {
     /// [`CellLoc`]: struct.CellLoc.html
     ///
     /// ```
-    /// use sudokugen::board::Board;
+    /// use sudokugen::{Board, BoardSize};
     /// use sudokugen::board::CellLoc;
     ///
-    /// let mut board = Board::new(3);
-    /// let cell = CellLoc::at(0, 0, 3);
+    /// let mut board = Board::new(BoardSize::NineByNine);
+    /// let cell = CellLoc::at(0, 0, BoardSize::NineByNine);
     /// board.set(&cell, 1);
     ///
     /// assert_eq!(board.get(&cell), Some(1));
@@ -348,25 +400,27 @@ impl Board {
     /// Returns the previous value in the board.
     ///
     /// ```
-    /// use sudokugen::board::Board;
+    /// use sudokugen::{Board, BoardSize};
     ///
-    /// let mut board = Board::new(3);
+    /// let mut board = Board::new(BoardSize::NineByNine);
     /// board.set_at(0, 0, 1);
     ///
     /// assert_eq!(board.get_at(0, 0), Some(1));
     /// ```
     pub fn set_at(&mut self, l: usize, c: usize, value: u8) -> Option<u8> {
-        self.cells[CellLoc::at(l, c, self.base_size).get_index()].replace(value)
+        let board_size = self.board_size();
+
+        self.cells[CellLoc::at(l, c, board_size).get_index()].replace(value)
     }
 
     /// Remove a value from the board at this cell and return the previously saved value.
     ///
     /// ```
-    /// use sudokugen::board::Board;
+    /// use sudokugen::{Board, BoardSize};    
     /// use sudokugen::board::CellLoc;
     ///
     /// let mut board: Board = "1... .... .... ....".parse().unwrap();
-    /// let cell = CellLoc::at(0, 0, 2);
+    /// let cell = CellLoc::at(0, 0, BoardSize::FourByFour);
     ///
     /// let old_value = board.unset(&cell);
     ///
@@ -408,21 +462,24 @@ impl Board {
     /// assert_eq!(board.get_at(0, 1), None);
     /// ```
     pub fn get_at(&self, l: usize, c: usize) -> Option<u8> {
-        self.get(&CellLoc::at(l, c, self.base_size))
+        self.get(&CellLoc::at(l, c, self.board_size()))
     }
 
     /// Return an iterator over all cells in the board.
     ///
     /// ```
-    /// use sudokugen::board::Board;
+    /// use sudokugen::{Board, BoardSize};
     /// use sudokugen::board::CellLoc;
     /// use std::collections::BTreeSet;
     ///
-    /// let board = Board::new(2);
+    /// let board = Board::new(BoardSize::FourByFour);
     ///
     /// assert_eq!(
     ///     board.iter_cells().collect::<BTreeSet<CellLoc>>(),
-    ///     (0..4).flat_map(|line| (0..4).map(move |col| CellLoc::at(line.clone(), col, 2))).collect::<BTreeSet<CellLoc>>()
+    ///     (0..4).flat_map(|line| (0..4).map(move |col| {
+    ///         CellLoc::at(line.clone(), col, BoardSize::FourByFour)
+    ///     }))
+    ///         .collect::<BTreeSet<CellLoc>>()
     /// );
     /// ```
     ///
@@ -443,9 +500,9 @@ impl Board {
     /// line and column using the [`at`] method
     ///
     /// ```
-    /// use sudokugen::board::Board;
+    /// use sudokugen::{Board, BoardSize};
     ///
-    /// let board = Board::new(3);
+    /// let board = Board::new(BoardSize::NineByNine);
     /// let cell = board.cell_at(1, 1);
     ///
     /// assert_eq!((cell.line(), cell.col()), (1, 1));
@@ -455,10 +512,10 @@ impl Board {
     /// [`at`]: struct.CellLoc.html#at
     #[must_use]
     pub fn cell_at(&self, l: usize, c: usize) -> CellLoc {
-        CellLoc::at(l, c, self.base_size)
+        CellLoc::at(l, c, self.board_size())
     }
 
-    /// Returns a new sudoku [`board`] rotated clockwise by 90deg.
+    /// Returns a new sudoku [`Board`] rotated clockwise by 90deg.
     ///
     /// Valid sudoku puzzles are also valid if rotated 90deg, 180deg and 270deg,
     /// they are the same puzzle, however must people would have trouble realizing that
@@ -487,10 +544,9 @@ impl Board {
     ///
     /// assert_eq!(board.rotated(), rotated_board);
     /// ```
-    ///
-    // [`board`]: #
+
     pub fn rotated(&self) -> Self {
-        let mut board = Board::new(self.base_size);
+        let mut board = Board::new(self.board_size());
         let width = self.base_size.pow(2);
 
         for cell in self.iter_cells() {
@@ -603,14 +659,19 @@ impl FromStr for Board {
             return Err(MalformedBoardError);
             // panic!("String definition of board does not have the correct size")
         }
-        let mut table = Board::new(base_size as usize);
+
+        let board_size: BoardSize = (base_size as usize)
+            .try_into()
+            .map_err(|_| MalformedBoardError)?;
+
+        let mut table = Board::new(board_size);
 
         // TODO: must support deserialization of tables larger than base 3
         for (idx, c) in board_as_string.char_indices() {
             match c {
                 '1'..='9' => {
                     table.set(
-                        &CellLoc::new(idx, base_size as usize),
+                        &CellLoc::new(idx, board_size),
                         c.to_digit(10).unwrap().try_into().unwrap(),
                     );
                 }
@@ -625,35 +686,35 @@ impl FromStr for Board {
 
 #[cfg(test)]
 mod test {
-    use super::Board;
     use super::CellLoc;
+    use super::{Board, BoardSize};
     use std::collections::BTreeSet;
 
     #[test]
     fn basics() {
-        let table = Board::new(2);
+        let table = Board::new(BoardSize::FourByFour);
 
         assert!(table.iter_cells().all(|cell| table.get(&cell).is_none()));
     }
 
     #[test]
     fn set_value() {
-        let mut table = Board::new(3);
+        let mut table = Board::new(BoardSize::NineByNine);
         assert_eq!(table.get_at(0, 0), None);
-        table.set(&CellLoc::new(0, 3), 3);
+        table.set(&CellLoc::new(0, BoardSize::NineByNine), 3);
         assert_eq!(table.get_at(0, 0), Some(3));
     }
 
     #[test]
     fn square() {
-        assert_eq!(CellLoc::at(0, 0, 3).square(), 0);
-        assert_eq!(CellLoc::at(0, 3, 3).square(), 1);
-        assert_eq!(CellLoc::at(3, 0, 3).square(), 3);
+        assert_eq!(CellLoc::at(0, 0, BoardSize::NineByNine).square(), 0);
+        assert_eq!(CellLoc::at(0, 3, BoardSize::NineByNine).square(), 1);
+        assert_eq!(CellLoc::at(3, 0, BoardSize::NineByNine).square(), 3);
     }
 
     #[test]
     fn iter_cells() {
-        let table = Board::new(3);
+        let table = Board::new(BoardSize::NineByNine);
         assert_eq!(
             table
                 .iter_cells()
@@ -681,7 +742,7 @@ mod test {
 
     #[test]
     fn possible_values_is_zero() {
-        let mut table = Board::new(3);
+        let mut table = Board::new(BoardSize::NineByNine);
         table.set_at(0, 0, 1);
 
         let mut iter = table.iter_cells();
@@ -693,7 +754,7 @@ mod test {
 
     #[test]
     fn possible_values() {
-        let mut table = Board::new(3);
+        let mut table = Board::new(BoardSize::NineByNine);
         table.set_at(0, 1, 2);
         table.set_at(0, 2, 3);
         table.set_at(1, 0, 4);
@@ -717,6 +778,6 @@ mod test {
     fn from() {
         let table: Board = "................".parse().unwrap();
         print!("{}", table);
-        assert_eq!(table, Board::new(2));
+        assert_eq!(table, Board::new(BoardSize::FourByFour));
     }
 }

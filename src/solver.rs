@@ -3,10 +3,9 @@
 //! the solution, if there is one.
 //!
 //! ```
-//! use sudokugen::solver::solve;
 //! use sudokugen::board::Board;
 //!
-//! let board: Board =
+//! let mut board: Board =
 //!     ". . . | 4 . . | 8 7 .
 //!      4 . 3 | . . . | . . .
 //!      2 . . | . . 3 | . . 9
@@ -22,8 +21,9 @@
 //!        .parse()
 //!        .unwrap();
 //!
+//! board.solve().unwrap();
 //! assert_eq!(
-//!     solve(&board).unwrap(),
+//!     board,
 //!     "695412873413879526287653419146235987728946135359187264561398742872564391934721658"
 //!     .parse()
 //!     .unwrap()
@@ -74,9 +74,9 @@ impl MoveLog {
         }
     }
 
-    fn get_strategy(&self) -> Option<Strategy> {
+    fn get_strategy(&self) -> Strategy {
         match self {
-            Self::SetValue { strategy, .. } => Some(*strategy),
+            Self::SetValue { strategy, .. } => *strategy,
         }
     }
 }
@@ -100,79 +100,78 @@ impl error::Error for UnsolvableError {
 }
 
 #[derive(Debug)]
-struct SudokuSolver {
-    board: Board,
+struct SudokuSolver<'a> {
+    board: &'a mut Board,
     candidate_cache: CandidateCache,
     move_log: Vec<MoveLog>,
     random: bool,
 }
 
-/// Helper function to solve a sudoku puzzle.
-///
-/// Given a reference to a [`board`], this function returns a new [`board`] representing
-/// a solution to that sudoku puzzle.
-///
-/// ```
-/// use sudokugen::solver::solve;
-/// use sudokugen::board::Board;
-///
-/// let board: Board =
-///     ". . . | 4 . . | 8 7 .
-///      4 . 3 | . . . | . . .
-///      2 . . | . . 3 | . . 9
-///      ---------------------
-///      . . 6 | 2 . . | . . 7
-///      . . . | 9 . 6 | . . .
-///      3 . 9 | . 8 . | . . .
-///      ---------------------
-///      . . . | . . . | . 4 .
-///      8 7 2 | 5 . . | . . .
-///      . . . | 7 2 . | 6 . .
-///     "
-///        .parse()
-///        .unwrap();
-///
-/// assert_eq!(
-///     solve(&board).unwrap(),
-///     "695412873413879526287653419146235987728946135359187264561398742872564391934721658"
-///     .parse()
-///     .unwrap()
-/// );
-/// ```
-///
-/// If the puzzle has no possible solutions, this function returns [`UnsolvableError`].
-///
-/// ```
-/// # use sudokugen::solver::solve;
-/// # use sudokugen::board::Board;
-/// #
-/// let board = "123. ...4 .... ....".parse().unwrap();
-/// assert!(matches!(solve(&board), Err(UnsolvableError)));
-/// ```
-///
-/// [`board`]: ../board/struct.Board.html
-/// [`UnsolvableError`]: struct.UnsolvableError.html
-pub fn solve(board: &Board) -> Result<Board, UnsolvableError> {
-    let mut solver = SudokuSolver::new(board);
-    solver.solve()?;
-    Ok(solver.board)
+impl Board {
+    /// Solves the sudoku puzzle.
+    ///
+    /// Updates the current board with the solution to that sudoku puzzle.
+    ///
+    /// ```
+    /// use sudokugen::board::Board;
+    ///
+    /// let mut board: Board =
+    ///     ". . . | 4 . . | 8 7 .
+    ///      4 . 3 | . . . | . . .
+    ///      2 . . | . . 3 | . . 9
+    ///      ---------------------
+    ///      . . 6 | 2 . . | . . 7
+    ///      . . . | 9 . 6 | . . .
+    ///      3 . 9 | . 8 . | . . .
+    ///      ---------------------
+    ///      . . . | . . . | . 4 .
+    ///      8 7 2 | 5 . . | . . .
+    ///      . . . | 7 2 . | 6 . .
+    ///     "
+    ///        .parse()
+    ///        .unwrap();
+    ///
+    /// board.solve().unwrap();
+    ///
+    /// assert_eq!(
+    ///     board,
+    ///     "695412873413879526287653419146235987728946135359187264561398742872564391934721658"
+    ///     .parse()
+    ///     .unwrap()
+    /// );
+    /// ```
+    ///
+    /// If the puzzle has no possible solutions, this function returns [`UnsolvableError`].
+    ///
+    /// ```
+    /// # use sudokugen::board::Board;
+    /// #
+    /// let mut board: Board = "123. ...4 .... ....".parse().unwrap();
+    /// assert!(matches!(board.solve(), Err(UnsolvableError)));
+    /// ```
+    ///
+    /// [`board`]: ../board/struct.Board.html
+    /// [`UnsolvableError`]: struct.UnsolvableError.html
+    pub fn solve(&mut self) -> Result<(), UnsolvableError> {
+        let mut solver = SudokuSolver::new(self);
+        solver.solve()?;
+        Ok(())
+    }
 }
 
-impl SudokuSolver {
-    fn new(board: &Board) -> Self {
+impl<'a> SudokuSolver<'a> {
+    fn new(board: &'a mut Board) -> Self {
         let candidate_cache = CandidateCache::from_board(&board);
 
-        let solver = SudokuSolver {
-            board: board.clone(),
+        SudokuSolver {
+            board,
             move_log: Vec::new(),
             candidate_cache,
             random: false,
-        };
-
-        solver
+        }
     }
 
-    fn new_random(board: &Board) -> Self {
+    fn new_random(board: &'a mut Board) -> Self {
         let mut solver = Self::new(board);
         solver.random = true;
         solver
@@ -293,9 +292,9 @@ impl SudokuSolver {
 
         if let Ok(ref mut moves) = self.register_move(Strategy::Guess, &cell, value) {
             self.move_log.append(moves);
-            return Ok(());
+            Ok(())
         } else {
-            return self.backtrack().and(Ok(()));
+            self.backtrack().and(Ok(()))
         }
     }
 
@@ -342,7 +341,7 @@ impl SudokuSolver {
             let strategy = mov.get_strategy();
             self.undo_move(mov);
 
-            if let Some(Strategy::Guess) = strategy {
+            if let Strategy::Guess = strategy {
                 // if possible values is not empty we need to try the remaining guesses
                 if !self
                     .candidate_cache
@@ -384,7 +383,7 @@ impl SudokuSolver {
             }
         }
 
-        return Err(UnsolvableError);
+        Err(UnsolvableError)
     }
 }
 
@@ -395,8 +394,7 @@ mod tests {
 
     #[test]
     fn naked_singles() {
-        let solver = SudokuSolver::new(
-            &"
+        let mut board = "
         12345678.
         2........
         3........
@@ -407,9 +405,10 @@ mod tests {
         8.....975
         ......13.
         "
-            .parse()
-            .unwrap(),
-        );
+        .parse()
+        .unwrap();
+
+        let solver = SudokuSolver::new(&mut board);
 
         let ns: HashSet<_> = solver.naked_singles().into_iter().collect();
         let res: HashSet<_> = vec![
@@ -425,8 +424,7 @@ mod tests {
 
     #[test]
     fn hidden_singles() {
-        let solver = SudokuSolver::new(
-            &"
+        let mut board = "
         ...45.78.
         9........
         .........
@@ -437,9 +435,10 @@ mod tests {
         .........
         .....9...
         "
-            .parse()
-            .unwrap(),
-        );
+        .parse()
+        .unwrap();
+
+        let solver = SudokuSolver::new(&mut board);
 
         assert_eq!(
             solver.hidden_singles(),
@@ -449,16 +448,15 @@ mod tests {
 
     #[test]
     fn hidden_singles_after_backtrack() {
-        let mut solver = SudokuSolver::new(
-            &"
+        let mut board = "
         ....
         3...
         ....
         ....
         "
-            .parse()
-            .unwrap(),
-        );
+        .parse()
+        .unwrap();
+        let mut solver = SudokuSolver::new(&mut board);
 
         let mut log = solver
             .register_move(Strategy::Guess, &solver.board.cell_at(3, 3), 3)
@@ -482,16 +480,16 @@ mod tests {
 
     #[test]
     fn register_move_results_in_error() {
-        let mut solver = SudokuSolver::new(
-            &"
-            12..
-            3...
-            ....
-            ....
-        "
-            .parse()
-            .unwrap(),
-        );
+        let mut board = "
+        12..
+        3...
+        ....
+        ....
+    "
+        .parse()
+        .unwrap();
+
+        let mut solver = SudokuSolver::new(&mut board);
 
         assert_eq!(
             solver

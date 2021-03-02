@@ -1,16 +1,26 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use sudokugen::generate;
-use sudokugen::solve;
-fn solve_benchmark(c: &mut Criterion) {
-    let table = ".724..3........49.........2921...5.7..4.6...3......2...4..7.....3..196....5..4.21"
-        .parse()
-        .unwrap();
+use criterion::{black_box, criterion_group, criterion_main, BatchSize, Criterion};
 
-    c.bench_function("solve", |b| b.iter(|| solve(black_box(&table)).unwrap()));
+use sudokugen::{board::BoardSize, Board, Puzzle};
+
+fn solve_benchmark(c: &mut Criterion) {
+    let table: Board =
+        ".724..3........49.........2921...5.7..4.6...3......2...4..7.....3..196....5..4.21"
+            .parse()
+            .unwrap();
+
+    c.bench_function("solve", |b| {
+        b.iter_batched(
+            || table.clone(),
+            |mut table| table.solve(),
+            BatchSize::SmallInput,
+        )
+    });
 }
 
 fn generate_benchmark(c: &mut Criterion) {
-    c.bench_function("generate", |b| b.iter(|| generate(black_box(3))));
+    c.bench_function("generate", |b| {
+        b.iter(|| Puzzle::generate(black_box(BoardSize::NineByNine)))
+    });
 }
 
 criterion_group!(solve_bench, solve_benchmark);
