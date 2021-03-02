@@ -108,8 +108,8 @@ impl<K: Indexed, V: Clone + Default> Map<K, V> for IndexedMap<K, V> {
         }
 
         if let Some(Some(_)) = self.keys.get(idx) {
-            let old_val = std::mem::take(&mut self.values[idx]);
-            self.values[idx] = value;
+            let old_val = std::mem::replace(&mut self.values[idx], value);
+
             self.keys[idx] = Some(key);
             Some(old_val)
         } else {
@@ -125,7 +125,7 @@ impl<K: Indexed, V: Clone + Default> Map<K, V> for IndexedMap<K, V> {
             panic!("Index out of bounds, index value for key is bigger than the map capacity.");
         }
 
-        if let Some(_) = self.keys[idx] {
+        if self.keys[idx].is_some() {
             self.keys[idx] = None;
             return Some(std::mem::take(&mut self.values[idx]));
         }

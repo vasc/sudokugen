@@ -55,10 +55,6 @@ impl UndoSetValue {
     pub fn alternative_options(&self) -> &Option<BTreeSet<u8>> {
         &self.options.1
     }
-
-    // pub fn cell(&self) -> &CellLoc {
-    //     &self.options.0
-    // }
 }
 
 pub struct Candidates<'a> {
@@ -79,13 +75,13 @@ impl CandidateCache {
 
         let mut candidate_cache = CandidateCache {
             possible_values,
-            candidate_cells: HashMap::with_capacity(board.get_base_size().pow(4) * 3),
+            candidate_cells: HashMap::with_capacity(board.board_size().get_base_size().pow(4) * 3),
         };
 
         for cell in candidate_cache.possible_values.keys() {
             let possible_values = candidate_cache.possible_values.get(&cell);
 
-            for value in 1..=(board.get_base_size() as u8).pow(2) {
+            for value in 1..=(board.board_size().get_base_size() as u8).pow(2) {
                 if let Some(possible_values) = possible_values {
                     if possible_values.contains(&value) {
                         for block in &cell.get_blocks_() {
@@ -104,7 +100,7 @@ impl CandidateCache {
     }
 
     fn calculate_possible_values(board: &Board) -> IndexedMap<CellLoc, BTreeSet<u8>> {
-        let mut possible_values = IndexedMap::new(board.get_base_size().pow(4));
+        let mut possible_values = IndexedMap::new(board.board_size().get_base_size().pow(4));
         for cell in board.iter_cells() {
             if let Some(values) = cell.get_possible_values(&board) {
                 possible_values.insert(cell, values);
@@ -287,7 +283,7 @@ mod tests {
     use super::Block::{Col, Line, Square};
     use super::CandidateCache;
     use crate::{
-        board::{Board, CellLoc},
+        board::{Board, BoardSize, CellLoc},
         solver::indexed_map::Map,
     };
     use std::collections::BTreeSet;
@@ -302,7 +298,7 @@ mod tests {
 
     #[test]
     fn test_iter_candidates() {
-        let cc = candidate_cache_from_board(&Board::new(3));
+        let cc = candidate_cache_from_board(&Board::new(BoardSize::NineByNine));
 
         assert_eq!(cc.iter_candidates().count(), 81 * 3);
         assert_eq!(
@@ -346,24 +342,34 @@ mod tests {
         assert_eq!(
             cc.candidates_at(&Line(0), &9),
             Some(
-                &vec![CellLoc::at(0, 7, 3), CellLoc::at(0, 8, 3),]
-                    .drain(..)
-                    .collect()
+                &vec![
+                    CellLoc::at(0, 7, BoardSize::NineByNine),
+                    CellLoc::at(0, 8, BoardSize::NineByNine),
+                ]
+                .drain(..)
+                .collect()
             )
         );
 
         assert_eq!(
             cc.candidates_at(&Col(0), &9),
             Some(
-                &vec![CellLoc::at(7, 0, 3), CellLoc::at(8, 0, 3),]
-                    .into_iter()
-                    .collect()
+                &vec![
+                    CellLoc::at(7, 0, BoardSize::NineByNine),
+                    CellLoc::at(8, 0, BoardSize::NineByNine),
+                ]
+                .into_iter()
+                .collect()
             )
         );
 
         assert_eq!(
             cc.candidates_at(&Square(0), &9),
-            Some(&vec![CellLoc::at(2, 2, 3)].drain(..).collect())
+            Some(
+                &vec![CellLoc::at(2, 2, BoardSize::NineByNine)]
+                    .drain(..)
+                    .collect()
+            )
         );
     }
 
@@ -380,7 +386,8 @@ mod tests {
 
         let mut cc = candidate_cache_from_board(&board);
 
-        cc.set_value(3, CellLoc::at(1, 0, 2)).unwrap();
+        cc.set_value(3, CellLoc::at(1, 0, BoardSize::FourByFour))
+            .unwrap();
 
         assert_eq!(
             cc.possible_values().get(&board.cell_at(1, 1)),
