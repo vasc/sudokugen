@@ -119,7 +119,7 @@
 //! You can run your own benchmarks with `cargo bench`
 
 #![warn(missing_docs)]
-#![warn(missing_doc_code_examples)]
+#![warn(rustdoc::missing_doc_code_examples)]
 
 pub mod board;
 pub mod solver;

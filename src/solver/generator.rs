@@ -183,7 +183,7 @@ fn remove_false_guesses(board: &mut Board) {
 
     let cells: Vec<_> = board
         .iter_cells()
-        .filter(|cell| board.get(&cell).is_some())
+        .filter(|cell| board.get(cell).is_some())
         .collect();
 
     for cell in cells {
