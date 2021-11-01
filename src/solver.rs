@@ -161,7 +161,7 @@ impl Board {
 
 impl<'a> SudokuSolver<'a> {
     fn new(board: &'a mut Board) -> Self {
-        let candidate_cache = CandidateCache::from_board(&board);
+        let candidate_cache = CandidateCache::from_board(board);
 
         SudokuSolver {
             board,
@@ -375,7 +375,7 @@ impl<'a> SudokuSolver<'a> {
 
                 // none of the possible guesses worked we keep backtracking
                 let possbible_values = cell
-                    .get_possible_values(&self.board)
+                    .get_possible_values(self.board)
                     .expect("cell was unset therefore the value must be Some");
 
                 self.candidate_cache

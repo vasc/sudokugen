@@ -79,7 +79,7 @@ impl CandidateCache {
         };
 
         for cell in candidate_cache.possible_values.keys() {
-            let possible_values = candidate_cache.possible_values.get(&cell);
+            let possible_values = candidate_cache.possible_values.get(cell);
 
             for value in 1..=(board.board_size().get_base_size() as u8).pow(2) {
                 if let Some(possible_values) = possible_values {
@@ -102,7 +102,7 @@ impl CandidateCache {
     fn calculate_possible_values(board: &Board) -> IndexedMap<CellLoc, BTreeSet<u8>> {
         let mut possible_values = IndexedMap::new(board.board_size().get_base_size().pow(4));
         for cell in board.iter_cells() {
-            if let Some(values) = cell.get_possible_values(&board) {
+            if let Some(values) = cell.get_possible_values(board) {
                 possible_values.insert(cell, values);
             }
         }
@@ -197,7 +197,7 @@ impl CandidateCache {
         options: BTreeSet<u8>,
     ) -> Option<BTreeSet<u8>> {
         for value in &options {
-            self.add_candidate(value, &cell);
+            self.add_candidate(value, cell);
         }
 
         self.possible_values.insert(*cell, options)
@@ -289,7 +289,7 @@ mod tests {
     use std::collections::BTreeSet;
 
     fn candidate_cache_from_board(board: &Board) -> CandidateCache {
-        CandidateCache::from_board(&board)
+        CandidateCache::from_board(board)
     }
 
     fn candidate_cache_from_board_str(board_str: &str) -> CandidateCache {
