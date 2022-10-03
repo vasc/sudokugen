@@ -35,7 +35,7 @@ impl Indexed for CellLoc {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NoCadidatesLeftError(CellLoc);
 
 impl fmt::Display for NoCadidatesLeftError {
@@ -44,7 +44,7 @@ impl fmt::Display for NoCadidatesLeftError {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UndoSetValue {
     moves: Vec<(u8, CellLoc, Block)>,
     options: (CellLoc, Option<BTreeSet<u8>>),
@@ -63,7 +63,7 @@ pub struct Candidates<'a> {
     pub cells: &'a BTreeSet<CellLoc>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CandidateCache {
     possible_values: IndexedMap<CellLoc, BTreeSet<u8>>,
     candidate_cells: HashMap<(Block, u8), BTreeSet<CellLoc>>,

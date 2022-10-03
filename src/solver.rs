@@ -82,7 +82,7 @@ impl MoveLog {
 }
 
 /// An errror to reperesent that this board is not solvable in it's current state
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UnsolvableError;
 
 impl fmt::Display for UnsolvableError {

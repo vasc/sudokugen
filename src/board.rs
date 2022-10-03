@@ -647,11 +647,11 @@ impl FromStr for Board {
     /// ```
     ///
     fn from_str(board_as_string: &str) -> Result<Self, Self::Err> {
-        let board_as_string = board_as_string.replace(" ", "");
-        let board_as_string = board_as_string.replace("\n", "");
-        let board_as_string = board_as_string.replace("_", "");
-        let board_as_string = board_as_string.replace("-", "");
-        let board_as_string = board_as_string.replace("|", "");
+        let board_as_string = board_as_string.replace(' ', "");
+        let board_as_string = board_as_string.replace('\n', "");
+        let board_as_string = board_as_string.replace('_', "");
+        let board_as_string = board_as_string.replace('-', "");
+        let board_as_string = board_as_string.replace('|', "");
 
         let base_size = (board_as_string.len() as f64).sqrt().sqrt();
 
