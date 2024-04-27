@@ -598,7 +598,7 @@ impl fmt::Display for Board {
 ///
 /// Boards have constraints that cannot be represented in easy to transfer formats (such as strings),
 /// A 9x9 board for instance must have exactly 81 cells with values ranging between 1 and 9.
-/// This error is returned when those constrainst are not met.
+/// This error is returned when those constraints are not met.
 #[derive(Debug, Clone)]
 pub struct MalformedBoardError;
 
@@ -640,7 +640,7 @@ impl FromStr for Board {
     /// ".parse().unwrap();
     /// ```
     ///
-    /// Alternatively a more streamelined format can be used, which is the same but without any formatting characters.
+    /// Alternatively a more streamlined format can be used, which is the same but without any formatting characters.
     /// ```
     /// use sudokugen::board::Board;
     /// let board: Board = "123456789........................................................................".parse().unwrap();
@@ -657,7 +657,6 @@ impl FromStr for Board {
 
         if base_size.fract() != 0.0 {
             return Err(MalformedBoardError);
-            // panic!("String definition of board does not have the correct size")
         }
 
         let board_size: BoardSize = (base_size as usize)
@@ -676,7 +675,7 @@ impl FromStr for Board {
                     );
                 }
                 '.' => continue,
-                _ => return Err(MalformedBoardError), // _ => panic!("All characters in the board representation should be digits or a spacing characted '.', '-', '|' or '\\n'")
+                _ => return Err(MalformedBoardError), // _ => panic!("All characters in the board representation should be digits or a spacing character '.', '-', '|' or '\\n'")
             }
         }
 
@@ -766,7 +765,7 @@ mod test {
         assert_eq!(
             cell.get_possible_values(&table),
             Some(
-                vec![1u8, 6, 7, 8, 9]
+                [1u8, 6, 7, 8, 9]
                     .iter()
                     .map(|value| value.to_owned())
                     .collect::<BTreeSet<u8>>()

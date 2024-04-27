@@ -36,9 +36,9 @@ impl Indexed for CellLoc {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct NoCadidatesLeftError(CellLoc);
+pub struct NoCandidatesLeftError(CellLoc);
 
-impl fmt::Display for NoCadidatesLeftError {
+impl fmt::Display for NoCandidatesLeftError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "No candidates left for this cell {}", self.0)
     }
@@ -113,7 +113,7 @@ impl CandidateCache {
         &mut self,
         value: u8,
         cell: CellLoc,
-    ) -> Result<UndoSetValue, NoCadidatesLeftError> {
+    ) -> Result<UndoSetValue, NoCandidatesLeftError> {
         // remove all possible values for this cell
         let maybe_options = self.possible_values.remove(&cell);
         let mut moves = Vec::new();
@@ -179,7 +179,7 @@ impl CandidateCache {
                         options: (cell, maybe_options),
                         affected_cell_options,
                     });
-                    return Err(NoCadidatesLeftError(cell));
+                    return Err(NoCandidatesLeftError(cell));
                 }
             }
         }

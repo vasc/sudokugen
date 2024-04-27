@@ -81,7 +81,7 @@ impl MoveLog {
     }
 }
 
-/// An errror to reperesent that this board is not solvable in it's current state
+/// An error to represent that this board is not solvable in it's current state
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UnsolvableError;
 
@@ -354,7 +354,7 @@ impl<'a> SudokuSolver<'a> {
                     self.candidate_cache.remove_candidate(&value, &cell);
 
                     // then we try each guess (to_owned is needed here otherwise self would be borrowed for
-                    // the entirity of the block)
+                    // the entirety of the block)
                     let guesses = self
                         .candidate_cache
                         .possible_values()
@@ -374,12 +374,12 @@ impl<'a> SudokuSolver<'a> {
                 }
 
                 // none of the possible guesses worked we keep backtracking
-                let possbible_values = cell
+                let possible_values = cell
                     .get_possible_values(self.board)
                     .expect("cell was unset therefore the value must be Some");
 
                 self.candidate_cache
-                    .reset_candidates(&cell, possbible_values);
+                    .reset_candidates(&cell, possible_values);
             }
         }
 

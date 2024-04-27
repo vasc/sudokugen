@@ -1,15 +1,15 @@
 //! Sudoku puzzle solver and generator library.
 //!
 //! Sudokugen can find a solution to a valid puzzle using a mixture of basic strategies
-//! and bruteforce. It can also generate new minimal puzzles.
+//! and brute force. It can also generate new minimal puzzles.
 //! This library was built as a rust learning project for myself.
 //!
 //! # How to use Sudokugen
-//! Sudokugen two structures to parse, manipulate and display sudoku board and puzzles.
+//! Sudokugen uses two structures to parse, manipulate and display a sudoku, a board and puzzle.
 //! The [Board] structure allows you to parse a board from a string, display it and try to solve it.
-//! The [Puzzle] strucutre contains the information relevant for a new puzzle, the initial board and it's solution.
+//! The [Puzzle] structure contains the information relevant for a new puzzle, the initial board and it's solution.
 //!
-//! You can parse a puzzle from a string:
+//! You can parse a board from a string:
 //!
 //! ```
 //! use sudokugen::Board;
@@ -58,7 +58,7 @@
 //! ```
 //!
 //! Finally you can generate new puzzles using [Puzzle::generate], when doing this you must specify what size of puzzle
-//! do you want to generate, [BoardSize] makes that very easy.
+//! do you want to generate, [BoardSize] makes that easy.
 //!
 //! ```
 //! use sudokugen::{Puzzle, BoardSize};
@@ -96,7 +96,7 @@
 //!
 //! # Crate Layout
 //! This crate is divided in three modules. [`board`] contains the tools needed to parse, manipulate and print
-//! a puzzle and it's individual cells. [`solver`] extends [`board::Board`] with the [`board::Board::solve`] function and [`solver::generator`] contains
+//! a puzzle and its individual cells. [`solver`] extends [`board::Board`] with the [`board::Board::solve`] function and [`solver::generator`] contains
 //! the [Puzzle] structure and it's static [`Puzzle::generate`] function.
 //!
 //! # Puzzle quality
